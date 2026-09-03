@@ -130,6 +130,15 @@ set(CMAKE_CXX_STANDARD 17)
 add_definitions(-DDT_VIRTUAL_QUERYFILTER=1)
 
 if(MSVC)
+# Do NOT append compiler flags here expecting them to survive. Further down,
+# the WIN32 branch does
+#     set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_RELEASE} /wd4996 ... /MP /EHsc")
+# which expands CMAKE_CXX_FLAGS_RELEASE, not CMAKE_CXX_FLAGS, and therefore
+# REPLACES everything set up here. I put /DDT_VIRTUAL_QUERYFILTER=1 on this
+# line on 2026-09-02 and it was silently discarded; gabtorman found the real
+# cause and moved it onto that later assignment, where it belongs. The
+# /std:c++17 below is likewise dropped there - harmless, since
+# CMAKE_CXX_STANDARD 17 above already covers it.
 set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /std:c++17")
 endif(MSVC)
 if(NOT MSVC)
@@ -536,7 +545,10 @@ elseif(WIN32)
   # Disable warnings in Visual Studio 8 and above and add /MP
   if(MSVC AND NOT CMAKE_GENERATOR MATCHES "Visual Studio 7")
     set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS_RELEASE} /wd4996 /wd4355 /wd4244 /wd4985 /wd4267 /MP /EHsc")
-    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_RELEASE} /wd4996 /wd4355 /wd4244 /wd4267 /MP /EHsc")
+    # This assignment replaces the earlier CMAKE_CXX_FLAGS value. Keep the
+    # virtual-query-filter switch here too, so Detour and every consumer agree
+    # on dtQueryFilter's layout and DcRouteFilter can override getCost.
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS_RELEASE} /wd4996 /wd4355 /wd4244 /wd4267 /MP /EHsc /DDT_VIRTUAL_QUERYFILTER=1")
   endif()
 endif()
 
