@@ -293,6 +293,8 @@ namespace ai
                 creators["hand of sacrifice"] = [](PlayerbotAI* ai) { return new HandOfSacrificeTrigger(ai); };
                 creators["blessing of sacrifice"] = [](PlayerbotAI* ai) { return new BlessingOfSacrificeTrigger(ai); };
                 creators["crusader strike"] = [](PlayerbotAI* ai) { return new CrusaderStrikeTrigger(ai); };
+                creators["holy strike"] = [](PlayerbotAI* ai) { return new HolyStrikeTrigger(ai); };
+                creators["bulwark of the righteous"] = [](PlayerbotAI* ai) { return new BulwarkTrigger(ai); };
                 // TurtleWoW Holy Paladin Daybreak target-prioritization:
                 creators["party member has daybreak"] = [](PlayerbotAI* ai) { return new PartyMemberHasDaybreakTrigger(ai); };
             }
@@ -358,6 +360,8 @@ namespace ai
                 creators["divine storm"] = [](PlayerbotAI* ai) { return new CastDivineStormAction(ai); };
                 creators["redemption"] = [](PlayerbotAI* ai) { return new CastRedemptionAction(ai); };
                 creators["crusader strike"] = [](PlayerbotAI* ai) { return new CastCrusaderStrikeAction(ai); };
+                creators["holy strike"] = [](PlayerbotAI* ai) { return new CastHolyStrikeAction(ai); };
+                creators["bulwark of the righteous"] = [](PlayerbotAI* ai) { return new CastBulwarkAction(ai); };
                 creators["retribution aura"] = [](PlayerbotAI* ai) { return new CastRetributionAuraAction(ai); };
                 creators["shadow resistance aura"] = [](PlayerbotAI* ai) { return new CastShadowResistanceAuraAction(ai); };
                 creators["fire resistance aura"] = [](PlayerbotAI* ai) { return new CastFireResistanceAuraAction(ai); };

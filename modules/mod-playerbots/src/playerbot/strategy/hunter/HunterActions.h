@@ -110,6 +110,13 @@ public:
         }
     };
 
+    class CastAspectOfTheWolfAction : public CastBuffSpellAction
+    {
+    public:
+        // Tortoise 45650: melee-AP aspect for the Survival melee kit.
+        CastAspectOfTheWolfAction(PlayerbotAI* ai) : CastBuffSpellAction(ai, "aspect of the wolf") {}
+    };
+
     class CastAspectOfTheViperAction : public CastBuffSpellAction
     {
     public:
@@ -764,4 +771,6 @@ private:
             strategiesToUpdate.emplace_back(BotState::BOT_STATE_NON_COMBAT, "aspect survival raid", strategiesRequired);
         }
     };
+
+    MELEE_ACTION(CastCarveAction, "carve");
 }

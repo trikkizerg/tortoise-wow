@@ -235,6 +235,7 @@ namespace ai
                 creators["bestial wrath"] = [](PlayerbotAI* ai) { return new BestialWrathBoostTrigger(ai); };
                 creators["silencing shot interrupt"] = [](PlayerbotAI* ai) { return new SilencingShotInterruptTrigger(ai); };
                 creators["silencing shot on enemy healer"] = [](PlayerbotAI* ai) { return new SilencingShotInterruptHealerTrigger(ai); };
+                creators["carve"] = [](PlayerbotAI* ai) { return new CarveTrigger(ai); };
                 creators["no pet"] = [](PlayerbotAI* ai) { return new HunterNoPet(ai); };
                 creators["stealthed nearby"] = [](PlayerbotAI* ai) { return new StealthedNearbyTrigger(ai); };
             }
@@ -269,10 +270,12 @@ namespace ai
                 creators["black arrow"] = [](PlayerbotAI* ai) { return new CastBlackArrow(ai); };
                 creators["rapid fire"] = [](PlayerbotAI* ai) { return new CastRapidFireAction(ai); };
                 creators["kill command"] = [](PlayerbotAI* ai) { return new CastKillCommandAction(ai); };
+                creators["carve"] = [](PlayerbotAI* ai) { return new CastCarveAction(ai); };
                 creators["boost"] = [](PlayerbotAI* ai) { return new CastRapidFireAction(ai); };
                 creators["readiness"] = [](PlayerbotAI* ai) { return new CastReadinessAction(ai); };
                 creators["aspect of the monkey"] = [](PlayerbotAI* ai) { return new CastAspectOfTheMonkeyAction(ai); };
                 creators["aspect of the hawk"] = [](PlayerbotAI* ai) { return new CastAspectOfTheHawkAction(ai); };
+                creators["aspect of the wolf"] = [](PlayerbotAI* ai) { return new CastAspectOfTheWolfAction(ai); };
                 creators["aspect of the wild"] = [](PlayerbotAI* ai) { return new CastAspectOfTheWildAction(ai); };
                 creators["aspect of the viper"] = [](PlayerbotAI* ai) { return new CastAspectOfTheViperAction(ai); };
                 creators["aspect of the pack"] = [](PlayerbotAI* ai) { return new CastAspectOfThePackAction(ai); };

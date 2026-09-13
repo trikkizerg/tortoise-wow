@@ -385,5 +385,24 @@ private:
             return target;
         }
     };
+
+    class KillCommandTrigger : public SpellCanBeCastedTrigger
+    {
+    public:
+        KillCommandTrigger(PlayerbotAI* ai) : SpellCanBeCastedTrigger(ai, "kill command") {}
+        bool IsActive() override
+        {
+            if (!SpellCanBeCastedTrigger::IsActive())
+                return false;
+            Unit* pet = AI_VALUE(Unit*, "pet target");
+            return pet && pet->IsAlive();
+        }
+    };
+
+    class CarveTrigger : public SpellCanBeCastedTrigger
+    {
+    public:
+        CarveTrigger(PlayerbotAI* ai) : SpellCanBeCastedTrigger(ai, "carve") {}
+    };
 }
 
