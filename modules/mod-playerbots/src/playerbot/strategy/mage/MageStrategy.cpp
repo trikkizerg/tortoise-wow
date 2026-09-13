@@ -65,12 +65,8 @@ private:
 MageStrategy::MageStrategy(PlayerbotAI* ai) : ClassStrategy(ai)
 {
     actionNodeFactories.Add(std::make_unique<MageStrategyActionNodeFactory>());
+
 }
-
-    triggers.push_back(new TriggerNode(
-        "evocation channel check",
-        NextAction::array(0, new NextAction("cancel channel", ACTION_HIGH + 4), NULL)));
-
 #ifdef MANGOSBOT_ZERO // Vanilla
 
 void MageStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -92,6 +88,10 @@ void MageStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "low mana",
         NextAction::array(0, new NextAction("evocation", ACTION_HIGH + 3), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "evocation channel check",
+        NextAction::array(0, new NextAction("cancel channel", ACTION_HIGH + 4), NULL)));
 
     triggers.push_back(new TriggerNode(
         "target critical health",

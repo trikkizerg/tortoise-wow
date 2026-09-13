@@ -1,11 +1,11 @@
-#ifdef MANGOSBOT_ZERO
-    BOOST_TRIGGER(BerserkTrigger, "berserk");
-#endif
 #pragma once
 #include "playerbot/strategy/triggers/GenericTriggers.h"
 
 namespace ai 
 {
+#ifdef MANGOSBOT_ZERO
+    BOOST_TRIGGER(BerserkTrigger, "berserk");
+#endif
     class MarkOfTheWildOnPartyTrigger : public BuffOnPartyTrigger 
     {
     public:

@@ -33,8 +33,6 @@ namespace ai
         CastHealingTouchAction(PlayerbotAI* ai) : CastHealingSpellAction(ai, "healing touch") {}
     };
 
-    class CastRejuvenationOnPartyAction : public HealPartyMemberAction
-    {
 #ifdef MANGOSBOT_ZERO
     class CastSwiftmendAction : public CastHealingSpellAction
     {
@@ -48,6 +46,9 @@ namespace ai
         CastSwiftmendOnPartyAction(PlayerbotAI* ai) : HealPartyMemberAction(ai, "swiftmend") {}
     };
 #endif
+
+    class CastRejuvenationOnPartyAction : public HealPartyMemberAction
+    {
     public:
         CastRejuvenationOnPartyAction(PlayerbotAI* ai) : HealPartyMemberAction(ai, "rejuvenation") {}
     };

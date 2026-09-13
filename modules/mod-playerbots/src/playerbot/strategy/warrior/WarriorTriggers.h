@@ -147,6 +147,24 @@ namespace ai
         SlamTrigger(PlayerbotAI* ai) : SpellCanBeCastedTrigger(ai, "slam") {}
     };
 
+    class MasterStrikeTrigger : public SpellCanBeCastedTrigger
+    {
+    public:
+        MasterStrikeTrigger(PlayerbotAI* ai) : SpellCanBeCastedTrigger(ai, "master strike") {}
+        bool IsActive() override
+        {
+            // Core CanCastSpell enforces cooldown/rage/weapon equip. Require a
+            // live melee target so the 30s weapon nuke is not wasted, and a
+            // main hand so a mismatched/empty slot cannot burn the cooldown.
+            if (!SpellCanBeCastedTrigger::IsActive())
+                return false;
+            Unit* target = GetTarget();
+            if (!target || !target->IsAlive())
+                return false;
+            return bot->GetWeaponForAttack(BASE_ATTACK, true, true) != nullptr;
+        }
+    };
+
     // TurtleWoW Protection Warrior: Defensive Tactics 3/3 = 180% threat
     // retention in non-Defensive stances when wearing a shield.
     //
