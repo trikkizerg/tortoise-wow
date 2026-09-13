@@ -37,6 +37,27 @@ namespace ai
 		CastDrainSoulAction(PlayerbotAI* ai) : CastSpellAction(ai, "drain soul") {}
 	};
 
+#ifdef MANGOSBOT_ZERO
+    class CastDarkHarvestAction : public CastSpellAction
+    {
+    public:
+        CastDarkHarvestAction(PlayerbotAI* ai) : CastSpellAction(ai, "dark harvest") {}
+    };
+
+    class CastPowerOverwhelmingAction : public CastSpellAction
+    {
+    public:
+        CastPowerOverwhelmingAction(PlayerbotAI* ai) : CastSpellAction(ai, "power overwhelming") {}
+        std::string GetTargetName() override { return "pet target"; }
+
+        bool isUseful() override
+        {
+            Unit* pet = AI_VALUE(Unit*, "pet target");
+            return pet && pet->IsAlive() && CastSpellAction::isUseful();
+        }
+    };
+#endif
+
     class CastShadowburnAction : public CastSpellAction
     {
     public:

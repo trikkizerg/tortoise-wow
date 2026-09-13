@@ -31,6 +31,16 @@ bool ShamanWeaponTrigger::IsActive()
     return false;
 }
 
+#ifdef MANGOSBOT_ZERO
+bool LightningStrikeTrigger::IsActive()
+{
+    if (!SpellCanBeCastedTrigger::IsActive())
+        return false;
+
+    return AI_VALUE2(uint8, "health", "current target") > 30;
+}
+#endif
+
 bool ShockTrigger::IsActive()
 {
     return SpellTrigger::IsActive() && !ai->HasAnyAuraOf(GetTarget(), "frost shock", "earth shock", "flame shock", NULL) && !HasMaxDebuffs();

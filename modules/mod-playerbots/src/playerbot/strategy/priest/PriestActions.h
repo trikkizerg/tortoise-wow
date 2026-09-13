@@ -24,6 +24,9 @@ namespace ai
 
     // disc talents
     BUFF_ACTION(CastInnerFocusAction, "inner focus");
+#ifdef MANGOSBOT_ZERO
+    BUFF_ACTION(CastAscendanceAction, "ascendance");
+#endif
     // disc 2.4.3 talents
     BUFF_ACTION(CastPainSuppressionAction, "pain suppression");
     PROTECT_ACTION(CastPainSuppressionProtectAction, "pain suppression");

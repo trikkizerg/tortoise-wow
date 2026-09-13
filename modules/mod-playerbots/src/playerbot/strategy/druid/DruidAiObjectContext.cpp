@@ -1,4 +1,3 @@
-
 #include "playerbot/playerbot.h"
 #include "DruidActions.h"
 #include "DruidAiObjectContext.h"
@@ -244,6 +243,9 @@ namespace ai
                 creators["no stealth"] = [](PlayerbotAI* ai) { return new NoStealthTrigger(ai); };
                 creators["stealth"] = [](PlayerbotAI* ai) { return new StealthTrigger(ai); };
                 creators["powershift"] = [](PlayerbotAI* ai) { return new PowershiftTrigger(ai); };
+#ifdef MANGOSBOT_ZERO
+                creators["berserk"] = [](PlayerbotAI* ai) { return new BerserkTrigger(ai); };
+#endif
                 creators["rebirth"] = [](PlayerbotAI* ai) { return new RebirthTrigger(ai); };
                 creators["innervate"] = [](PlayerbotAI* ai) { return new InnervateTrigger(ai); };
                 creators["lifebloom"] = [](PlayerbotAI* ai) { return new LifebloomTankTrigger(ai); };
@@ -311,6 +313,10 @@ namespace ai
                 creators["regrowth"] = [](PlayerbotAI* ai) { return new CastRegrowthAction(ai); };
                 creators["rejuvenation"] = [](PlayerbotAI* ai) { return new CastRejuvenationAction(ai); };
                 creators["healing touch"] = [](PlayerbotAI* ai) { return new CastHealingTouchAction(ai); };
+                #ifdef MANGOSBOT_ZERO
+                                creators["swiftmend"] = [](PlayerbotAI* ai) { return new CastSwiftmendAction(ai); };
+                                creators["swiftmend on party"] = [](PlayerbotAI* ai) { return new CastSwiftmendOnPartyAction(ai); };
+                #endif
                 creators["regrowth on party"] = [](PlayerbotAI* ai) { return new CastRegrowthOnPartyAction(ai); };
                 creators["rejuvenation on party"] = [](PlayerbotAI* ai) { return new CastRejuvenationOnPartyAction(ai); };
                 creators["healing touch on party"] = [](PlayerbotAI* ai) { return new CastHealingTouchOnPartyAction(ai); };

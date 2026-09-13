@@ -99,6 +99,10 @@ void DpsFeralDruidStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers
         NextAction::array(0, new NextAction("faerie fire (feral)", ACTION_NORMAL + 5), NULL)));
 
     triggers.push_back(new TriggerNode(
+        "berserk",
+        NextAction::array(0, new NextAction("berserk", ACTION_HIGH + 2), NULL)));
+
+    triggers.push_back(new TriggerNode(
         "ferocious bite",
         NextAction::array(0, new NextAction("ferocious bite", ACTION_NORMAL + 3), NULL)));
 

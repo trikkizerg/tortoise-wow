@@ -35,6 +35,19 @@ namespace ai
 
     class CastRejuvenationOnPartyAction : public HealPartyMemberAction
     {
+#ifdef MANGOSBOT_ZERO
+    class CastSwiftmendAction : public CastHealingSpellAction
+    {
+    public:
+        CastSwiftmendAction(PlayerbotAI* ai) : CastHealingSpellAction(ai, "swiftmend") {}
+    };
+
+    class CastSwiftmendOnPartyAction : public HealPartyMemberAction
+    {
+    public:
+        CastSwiftmendOnPartyAction(PlayerbotAI* ai) : HealPartyMemberAction(ai, "swiftmend") {}
+    };
+#endif
     public:
         CastRejuvenationOnPartyAction(PlayerbotAI* ai) : HealPartyMemberAction(ai, "rejuvenation") {}
     };

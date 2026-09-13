@@ -21,6 +21,7 @@ public:
         creators["whirlwind"] = &whirlwind;
         creators["berserker rage"] = &berserker_rage;
         creators["recklessness"] = &recklessness;
+    #ifdef MANGOSBOT_ZERO
         creators["pummel"] = &pummel;
         creators["intercept"] = &intercept;
 
@@ -30,9 +31,16 @@ public:
         creators["shield block"] = &shield_block;
         creators["disarm"] = &disarm;
         creators["shield wall"] = &shield_wall;
+    #endif
         creators["intervene"] = &intervene;
         */
 
+        creators["pummel"] = &pummel;
+        creators["intercept"] = &intercept;
+        creators["taunt"] = &taunt;
+        creators["revenge"] = &revenge;
+        creators["shield block"] = &shield_block;
+        creators["shield wall"] = &shield_wall;
         creators["berserker rage"] = &berserker_rage;
     }
 
@@ -49,10 +57,17 @@ private:
 
     ACTION_NODE_P(whirlwind, "whirlwind", "berserker stance");
 
-    ACTION_NODE_P(berserker_rage, "berserker rage", "berserker stance");
-
     ACTION_NODE_P(recklessness, "recklessness", "berserker stance");
 
+    ACTION_NODE_P(disarm, "disarm", "defensive stance");
+
+    ACTION_NODE_P(shield_wall, "shield wall", "defensive stance");
+
+    ACTION_NODE_P(intervene, "intervene", "defensive stance");
+
+    */
+
+#ifdef MANGOSBOT_ZERO
     ACTION_NODE_P(pummel, "pummel", "berserker stance");
 
     ACTION_NODE_P(intercept, "intercept", "berserker stance");
@@ -63,13 +78,8 @@ private:
 
     ACTION_NODE_P(shield_block, "shield block", "defensive stance");
 
-    ACTION_NODE_P(disarm, "disarm", "defensive stance");
-
     ACTION_NODE_P(shield_wall, "shield wall", "defensive stance");
-
-    ACTION_NODE_P(intervene, "intervene", "defensive stance");
-
-    */
+#endif
 
     ACTION_NODE_P(berserker_rage, "berserker rage", "berserker stance");
 };

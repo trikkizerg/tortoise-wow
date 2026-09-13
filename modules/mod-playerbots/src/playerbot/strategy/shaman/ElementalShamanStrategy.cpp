@@ -52,6 +52,10 @@ void ElementalShamanStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigge
     triggers.push_back(new TriggerNode(
         "shock",
         NextAction::array(0, new NextAction("earth shock", ACTION_NORMAL), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "elemental mastery",
+        NextAction::array(0, new NextAction("elemental mastery", ACTION_HIGH), NULL)));
 }
 
 void ElementalShamanStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)
@@ -152,6 +156,10 @@ void ElementalShamanRaidStrategy::InitDeadTriggers(std::list<TriggerNode*>& trig
 void ElementalShamanAoeStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     ShamanAoeStrategy::InitCombatTriggers(triggers);
+
+    triggers.push_back(new TriggerNode(
+        "ranged medium aoe",
+        NextAction::array(0, new NextAction("earthquake", ACTION_HIGH + 1), NULL)));
 
     triggers.push_back(new TriggerNode(
         "ranged light aoe",

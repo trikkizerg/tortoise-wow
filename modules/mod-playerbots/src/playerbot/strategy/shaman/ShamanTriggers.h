@@ -503,4 +503,24 @@ namespace ai
     CAN_CAST_TRIGGER(ChainLightningTrigger, "chain lightning");
 
     CAN_CAST_TRIGGER(StormstrikeTrigger, "stormstrike");
+
+#ifdef MANGOSBOT_ZERO
+    class LightningStrikeTrigger : public SpellCanBeCastedTrigger
+    {
+    public:
+        LightningStrikeTrigger(PlayerbotAI* ai) : SpellCanBeCastedTrigger(ai, "lightning strike") {}
+        bool IsActive() override;
+    };
+
+    class SpiritLinkOnPartyTankTrigger : public BuffOnTankTrigger
+    {
+    public:
+        SpiritLinkOnPartyTankTrigger(PlayerbotAI* ai) : BuffOnTankTrigger(ai, "spirit link") {}
+        bool IsActive() override { return BuffOnTankTrigger::IsActive() && ai->IsStateActive(BotState::BOT_STATE_COMBAT); }
+    };
+
+    BUFF_TRIGGER(AncestralSwiftnessTrigger, "ancestral swiftness");
+    HAS_AURA_TRIGGER(AncestralSwiftnessAuraTrigger, "ancestral swiftness");
+    BUFF_TRIGGER(ElementalMasteryTrigger, "elemental mastery");
+#endif
 }

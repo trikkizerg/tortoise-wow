@@ -40,6 +40,36 @@ namespace ai
     DEBUFF_TRIGGER(SiphonLifeTrigger, "siphon life");
     DEBUFF_TRIGGER(UnstableAfflictionTrigger, "unstable affliction");
 
+#ifdef MANGOSBOT_ZERO
+    class RainOfFireChannelCheckTrigger : public Trigger
+    {
+    public:
+        RainOfFireChannelCheckTrigger(PlayerbotAI* ai) : Trigger(ai, "rain of fire channel check") {}
+        bool IsActive() override;
+    };
+
+    class DarkHarvestTrigger : public SpellCanBeCastedTrigger
+    {
+    public:
+        DarkHarvestTrigger(PlayerbotAI* ai) : SpellCanBeCastedTrigger(ai, "dark harvest") {}
+        bool IsActive() override;
+    };
+
+    class DarkHarvestChannelCheckTrigger : public Trigger
+    {
+    public:
+        DarkHarvestChannelCheckTrigger(PlayerbotAI* ai) : Trigger(ai, "dark harvest channel check") {}
+        bool IsActive() override;
+    };
+
+    class PowerOverwhelmingTrigger : public SpellCanBeCastedTrigger
+    {
+    public:
+        PowerOverwhelmingTrigger(PlayerbotAI* ai) : SpellCanBeCastedTrigger(ai, "power overwhelming") {}
+        bool IsActive() override;
+    };
+#endif
+
     INTERRUPT_TRIGGER(DeathCoilInterruptTrigger, "death coil");
     INTERRUPT_HEALER_TRIGGER(DeathCoilInterruptTHealerTrigger, "death coil");
     SNARE_TRIGGER(DeathCoilSnareTrigger, "death coil");

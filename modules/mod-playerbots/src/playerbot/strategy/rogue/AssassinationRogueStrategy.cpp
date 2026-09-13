@@ -40,6 +40,12 @@ void AssassinationRogueStrategy::InitCombatTriggers(std::list<TriggerNode*>& tri
         "eviscerate",
         NextAction::array(0, new NextAction("eviscerate", ACTION_HIGH + 2), NULL)));
 
+#ifdef MANGOSBOT_ZERO
+    triggers.push_back(new TriggerNode(
+        "envenom",
+        NextAction::array(0, new NextAction("envenom", ACTION_HIGH + 1), NULL)));
+#endif
+
     triggers.push_back(new TriggerNode(
         "slice and dice",
         NextAction::array(0, new NextAction("slice and dice", ACTION_HIGH + 1), NULL)));
@@ -47,6 +53,12 @@ void AssassinationRogueStrategy::InitCombatTriggers(std::list<TriggerNode*>& tri
     triggers.push_back(new TriggerNode(
         "3 combo",
         NextAction::array(0, new NextAction("rupture", ACTION_HIGH), NULL)));
+
+#ifdef MANGOSBOT_ZERO
+    triggers.push_back(new TriggerNode(
+        "noxious assault",
+        NextAction::array(0, new NextAction("noxious assault", ACTION_NORMAL + 1), NULL)));
+#endif
 
     triggers.push_back(new TriggerNode(
         "behind target",

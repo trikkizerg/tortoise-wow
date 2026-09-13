@@ -158,6 +158,9 @@ namespace ai
                 creators["bloodthirst"] = [](PlayerbotAI* ai) { return new BloodthirstTrigger(ai); };
                 creators["whirlwind"] = [](PlayerbotAI* ai) { return new WhirlwindTrigger(ai); };
                 creators["heroic strike"] = [](PlayerbotAI* ai) { return new HeroicStrikeTrigger(ai); };
+#ifdef MANGOSBOT_ZERO
+                creators["master strike"] = [](PlayerbotAI* ai) { return new MasterStrikeTrigger(ai); };
+#endif
                 creators["berserker rage"] = [](PlayerbotAI* ai) { return new BerserkerRageBuffTrigger(ai); };
                 creators["pummel on enemy healer"] = [](PlayerbotAI* ai) { return new PummelInterruptEnemyHealerSpellTrigger(ai); };
                 creators["pummel"] = [](PlayerbotAI* ai) { return new PummelInterruptSpellTrigger(ai); };
@@ -229,6 +232,9 @@ namespace ai
                 creators["retaliation"] = [](PlayerbotAI* ai) { return new CastRetaliationAction(ai); };
                 creators["mortal strike"] = [](PlayerbotAI* ai) { return new CastMortalStrikeAction(ai); };
                 creators["sweeping strikes"] = [](PlayerbotAI* ai) { return new CastSweepingStrikesAction(ai); };
+#ifdef MANGOSBOT_ZERO
+                creators["master strike"] = [](PlayerbotAI* ai) { return new CastMasterStrikeAction(ai); };
+#endif
                 creators["intercept"] = [](PlayerbotAI* ai) { return new CastInterceptAction(ai); };
                 creators["whirlwind"] = [](PlayerbotAI* ai) { return new CastWhirlwindAction(ai); };
                 creators["pummel"] = [](PlayerbotAI* ai) { return new CastPummelAction(ai); };

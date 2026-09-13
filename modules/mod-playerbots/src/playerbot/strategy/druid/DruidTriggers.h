@@ -1,3 +1,6 @@
+#ifdef MANGOSBOT_ZERO
+    BOOST_TRIGGER(BerserkTrigger, "berserk");
+#endif
 #pragma once
 #include "playerbot/strategy/triggers/GenericTriggers.h"
 

@@ -21,6 +21,16 @@ void AfflictionWarlockStrategy::InitCombatTriggers(std::list<TriggerNode*>& trig
         "low mana",
         NextAction::array(0, new NextAction("dark pact", ACTION_HIGH + 2), NULL)));
 
+#ifdef MANGOSBOT_ZERO
+    triggers.push_back(new TriggerNode(
+        "dark harvest channel check",
+        NextAction::array(0, new NextAction("cancel channel", ACTION_HIGH + 3), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "dark harvest",
+        NextAction::array(0, new NextAction("dark harvest", ACTION_NORMAL + 3), NULL)));
+#endif
+
     triggers.push_back(new TriggerNode(
         "siphon life",
         NextAction::array(0, new NextAction("siphon life", ACTION_NORMAL), NULL)));

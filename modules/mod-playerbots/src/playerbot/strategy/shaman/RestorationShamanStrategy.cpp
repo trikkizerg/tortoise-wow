@@ -71,6 +71,14 @@ void RestorationShamanStrategy::InitCombatTriggers(std::list<TriggerNode*> &trig
         NextAction::array(0, new NextAction("healing wave on party", ACTION_CRITICAL_HEAL + 1), NULL)));
 
     triggers.push_back(new TriggerNode(
+        "spirit link on party tank",
+        NextAction::array(0, new NextAction("spirit link on party tank", ACTION_HIGH), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "ancestral swiftness heal",
+        NextAction::array(0, new NextAction("healing wave on party", ACTION_HIGH + 1), NULL)));
+
+    triggers.push_back(new TriggerNode(
         "low health",
         NextAction::array(0, new NextAction("riptide", ACTION_CRITICAL_HEAL), NULL)));
 

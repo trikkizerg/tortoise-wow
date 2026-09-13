@@ -40,6 +40,20 @@ void SubtletyRogueStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers
         "eviscerate",
         NextAction::array(0, new NextAction("eviscerate", ACTION_HIGH + 2), NULL)));
 
+#ifdef MANGOSBOT_ZERO
+    triggers.push_back(new TriggerNode(
+        "shadow of death",
+        NextAction::array(0, new NextAction("shadow of death", ACTION_HIGH + 1), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "mark for death",
+        NextAction::array(0, new NextAction("mark for death", ACTION_HIGH), NULL)));
+
+    triggers.push_back(new TriggerNode(
+        "critical health",
+        NextAction::array(0, new NextAction("smoke bomb", ACTION_EMERGENCY), NULL)));
+#endif
+
     triggers.push_back(new TriggerNode(
         "slice and dice",
         NextAction::array(0, new NextAction("slice and dice", ACTION_HIGH + 1), NULL)));

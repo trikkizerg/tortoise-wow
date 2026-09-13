@@ -38,6 +38,57 @@ bool ManaShieldTrigger::IsActive()
     return !ai->HasAura("mana shield", bot) && AI_VALUE2(uint8, "mana", "self target") > sPlayerbotAIConfig.mediumMana;
 }
 
+#ifdef MANGOSBOT_ZERO
+bool IciclesTrigger::IsActive()
+{
+    if (!SpellCanBeCastedTrigger::IsActive())
+        return false;
+
+    Unit* target = GetTarget();
+    if (!target || !target->IsAlive())
+        return false;
+
+    if (AI_VALUE2(uint8, "health", "current target") <= 30)
+        return false;
+
+    if (AI_VALUE2(uint8, "health", "self target") < 60)
+        return false;
+
+    return AI_VALUE(uint8, "my attacker count") == 0;
+}
+
+bool IciclesChannelCheckTrigger::IsActive()
+{
+    if (Spell* spell = bot->GetCurrentSpell(CURRENT_CHANNELED_SPELL))
+    {
+        if (spell->m_spellInfo)
+        {
+            uint32 id = spell->m_spellInfo->Id;
+            if (id == 52516 || id == 51991 || id == 51995 || id == 51997)
+            {
+                Unit* target = AI_VALUE(Unit*, "current target");
+                return !target || !target->IsAlive();
+            }
+        }
+    }
+    return false;
+}
+
+bool EvocationChannelCheckTrigger::IsActive()
+{
+    if (Spell* spell = bot->GetCurrentSpell(CURRENT_CHANNELED_SPELL))
+    {
+        if (spell->m_spellInfo && spell->m_spellInfo->Id == 12051)
+        {
+            if (!AI_VALUE2(bool, "has mana", "self target"))
+                return false;
+            return AI_VALUE2(uint8, "mana", "self target") >= 95;
+        }
+    }
+    return false;
+}
+#endif
+
 bool IceLanceTrigger::IsActive()
 {
     Unit* target = GetTarget();
@@ -64,3 +115,23 @@ bool NoImprovedScorchDebuffTrigger::IsActive()
 
     return false;
 }
+
+#ifdef MANGOSBOT_ZERO
+bool ArcanePowerTrigger::IsActive()
+{
+    if (!BuffTrigger::IsActive())
+        return false;
+
+    if (!ai->IsStateActive(BotState::BOT_STATE_COMBAT))
+        return false;
+
+    Unit* target = AI_VALUE(Unit*, "current target");
+    if (!target || !target->IsAlive())
+        return false;
+
+    if (!AI_VALUE2(bool, "has mana", "self target"))
+        return false;
+
+    return AI_VALUE2(uint8, "mana", "self target") >= 70;
+}
+#endif

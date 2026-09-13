@@ -268,6 +268,32 @@ namespace ai
         CastExposeArmorAction(PlayerbotAI* ai) : CastMeleeSpellAction(ai, "expose armor") {}
     };
 
+#ifdef MANGOSBOT_ZERO
+    class CastEnvenomAction : public CastMeleeSpellAction
+    {
+    public:
+        CastEnvenomAction(PlayerbotAI* ai) : CastMeleeSpellAction(ai, "envenom") {}
+    };
+
+    class CastShadowOfDeathAction : public CastMeleeSpellAction
+    {
+    public:
+        CastShadowOfDeathAction(PlayerbotAI* ai) : CastMeleeSpellAction(ai, "shadow of death") {}
+    };
+
+    class CastMarkForDeathAction : public CastMeleeSpellAction
+    {
+    public:
+        CastMarkForDeathAction(PlayerbotAI* ai) : CastMeleeSpellAction(ai, "mark for death") {}
+    };
+
+    class CastSmokeBombAction : public CastBuffSpellAction
+    {
+    public:
+        CastSmokeBombAction(PlayerbotAI* ai) : CastBuffSpellAction(ai, "smoke bomb") {}
+    };
+#endif
+
     class CastRuptureAction : public CastMeleeDebuffSpellAction
     {
     public:
@@ -290,6 +316,20 @@ namespace ai
             return CastMeleeSpellAction::isUseful() && AI_VALUE2(uint8, "combo", "current target") < 5;
         }
     };
+
+#ifdef MANGOSBOT_ZERO
+    class CastSurpriseAttackAction : public CastComboAction
+    {
+    public:
+        CastSurpriseAttackAction(PlayerbotAI* ai) : CastComboAction(ai, "surprise attack") {}
+    };
+
+    class CastNoxiousAssaultAction : public CastComboAction
+    {
+    public:
+        CastNoxiousAssaultAction(PlayerbotAI* ai) : CastComboAction(ai, "noxious assault") {}
+    };
+#endif
 
     class CastSinisterStrikeAction : public CastComboAction
     {

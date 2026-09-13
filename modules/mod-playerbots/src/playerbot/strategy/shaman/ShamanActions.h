@@ -350,6 +350,34 @@ namespace ai
 		CastStormstrikeAction(PlayerbotAI* ai) : CastMeleeSpellAction(ai, "stormstrike") {}
 	};
 
+#ifdef MANGOSBOT_ZERO
+    BUFF_ACTION(CastElementalMasteryAction, "elemental mastery");
+
+    class CastLightningStrikeAction : public CastMeleeSpellAction
+    {
+    public:
+        CastLightningStrikeAction(PlayerbotAI* ai) : CastMeleeSpellAction(ai, "lightning strike") {}
+    };
+
+    class CastEarthquakeAction : public CastSpellAction
+    {
+    public:
+        CastEarthquakeAction(PlayerbotAI* ai) : CastSpellAction(ai, "earthquake") {}
+    };
+
+    class CastSpiritLinkOnPartyTankAction : public BuffOnTankAction
+    {
+    public:
+        CastSpiritLinkOnPartyTankAction(PlayerbotAI* ai) : BuffOnTankAction(ai, "spirit link") {}
+    };
+
+    class CastAncestralSwiftnessAction : public CastBuffSpellAction
+    {
+    public:
+        CastAncestralSwiftnessAction(PlayerbotAI* ai) : CastBuffSpellAction(ai, "ancestral swiftness") {}
+    };
+#endif
+
 	class CastLavaLashAction : public CastMeleeSpellAction 
     {
 	public:

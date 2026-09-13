@@ -231,6 +231,12 @@ namespace ai
                 creators["shadowfury on snare target"] = [](PlayerbotAI* ai) { return new ShadowfurySnareTrigger(ai); };
                 creators["unstable affliction"] = [](PlayerbotAI* ai) { return new UnstableAfflictionTrigger(ai); };
                 creators["unstable affliction on attacker"] = [](PlayerbotAI* ai) { return new UnstableAfflictionOnAttackerTrigger(ai); };
+#ifdef MANGOSBOT_ZERO
+                creators["rain of fire channel check"] = [](PlayerbotAI* ai) { return new RainOfFireChannelCheckTrigger(ai); };
+                creators["dark harvest"] = [](PlayerbotAI* ai) { return new DarkHarvestTrigger(ai); };
+                creators["dark harvest channel check"] = [](PlayerbotAI* ai) { return new DarkHarvestChannelCheckTrigger(ai); };
+                creators["power overwhelming"] = [](PlayerbotAI* ai) { return new PowerOverwhelmingTrigger(ai); };
+#endif
                 creators["life tap"] = [](PlayerbotAI* ai) { return new LifeTapTrigger(ai); };
                 creators["drain soul"] = [](PlayerbotAI* ai) { return new DrainSoulTrigger(ai); };
                 creators["no curse"] = [](PlayerbotAI* ai) { return new NoCurseTrigger(ai); };
@@ -291,6 +297,10 @@ namespace ai
                 creators["curse of shadow on attacker"] = [](PlayerbotAI* ai) { return new CastCurseOfShadowOnAttackerAction(ai); };
                 creators["shadow bolt"] = [](PlayerbotAI* ai) { return new CastShadowBoltAction(ai); };
                 creators["drain soul"] = [](PlayerbotAI* ai) { return new CastDrainSoulAction(ai); };
+#ifdef MANGOSBOT_ZERO
+                creators["dark harvest"] = [](PlayerbotAI* ai) { return new CastDarkHarvestAction(ai); };
+                creators["power overwhelming"] = [](PlayerbotAI* ai) { return new CastPowerOverwhelmingAction(ai); };
+#endif
                 creators["drain mana"] = [](PlayerbotAI* ai) { return new CastDrainManaAction(ai); };
                 creators["drain life"] = [](PlayerbotAI* ai) { return new CastDrainLifeAction(ai); };
                 creators["banish"] = [](PlayerbotAI* ai) { return new CastBanishAction(ai); };

@@ -35,6 +35,23 @@ namespace ai
     // arms talents
     MELEE_ACTION(CastMortalStrikeAction, "mortal strike");
     BUFF_ACTION(CastSweepingStrikesAction, "sweeping strikes");
+
+#ifdef MANGOSBOT_ZERO
+    class CastMasterStrikeAction : public CastMeleeSpellAction
+    {
+    public:
+        CastMasterStrikeAction(PlayerbotAI* ai) : CastMeleeSpellAction(ai, "master strike") {}
+
+        bool isPossible() override
+        {
+            if (!CastMeleeSpellAction::isPossible())
+                return false;
+
+            return bot->GetWeaponForAttack(BASE_ATTACK, true, true) != nullptr;
+        }
+    };
+#endif
+
     // arms talents 3.3.5
     BUFF_ACTION(CastBladestormAction, "bladestorm");
 

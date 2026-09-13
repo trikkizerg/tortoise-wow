@@ -14,6 +14,12 @@ void CombatRogueStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
         "riposte",
         NextAction::array(0, new NextAction("riposte", ACTION_HIGH + 3), NULL)));
 
+#ifdef MANGOSBOT_ZERO
+    triggers.push_back(new TriggerNode(
+        "surprise attack",
+        NextAction::array(0, new NextAction("surprise attack", ACTION_HIGH + 3), NULL)));
+#endif
+
     triggers.push_back(new TriggerNode(
         "slice and dice",
         NextAction::array(0, new NextAction("slice and dice", ACTION_HIGH + 2), NULL)));

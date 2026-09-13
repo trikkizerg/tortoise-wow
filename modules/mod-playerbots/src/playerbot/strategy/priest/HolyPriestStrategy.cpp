@@ -30,6 +30,12 @@ void HolyPriestStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
 {
     PriestStrategy::InitCombatTriggers(triggers);
 
+#ifdef MANGOSBOT_ZERO
+    triggers.push_back(new TriggerNode(
+        "ascendance",
+        NextAction::array(0, new NextAction("ascendance", ACTION_HIGH), NULL)));
+#endif
+
     triggers.push_back(new TriggerNode(
         "party member critical health",
         NextAction::array(0, new NextAction("power word: shield on party", ACTION_CRITICAL_HEAL + 1),

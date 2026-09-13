@@ -290,6 +290,14 @@ namespace ai
                 creators["earth shield on party tank"] = [](PlayerbotAI* ai) { return new PartyTankEarthShieldTrigger(ai); };
                 creators["chain lightning"] = [](PlayerbotAI* ai) { return new ChainLightningTrigger(ai); };
                 creators["stormstrike"] = [](PlayerbotAI* ai) { return new StormstrikeTrigger(ai); };
+#ifdef MANGOSBOT_ZERO
+                creators["lightning strike"] = [](PlayerbotAI* ai) { return new LightningStrikeTrigger(ai); };
+                creators["elemental mastery"] = [](PlayerbotAI* ai) { return new ElementalMasteryTrigger(ai); };
+                creators["spirit link on party tank"] = [](PlayerbotAI* ai) { return new SpiritLinkOnPartyTankTrigger(ai); };
+                creators["ancestral swiftness"] = [](PlayerbotAI* ai) { return new AncestralSwiftnessTrigger(ai); };
+                creators["ancestral swiftness active"] = [](PlayerbotAI* ai) { return new AncestralSwiftnessAuraTrigger(ai); };
+                creators["ancestral swiftness heal"] = [](PlayerbotAI* ai) { return new TwoTriggers(ai, "ancestral swiftness active", "party member low health"); };
+#endif
             }
         };
 
@@ -341,6 +349,13 @@ namespace ai
                 creators["riptide"] = [](PlayerbotAI* ai) { return new CastRiptideAction(ai); };
                 creators["riptide on party"] = [](PlayerbotAI* ai) { return new CastRiptideOnPartyAction(ai); };
                 creators["stormstrike"] = [](PlayerbotAI* ai) { return new CastStormstrikeAction(ai); };
+#ifdef MANGOSBOT_ZERO
+                creators["elemental mastery"] = [](PlayerbotAI* ai) { return new CastElementalMasteryAction(ai); };
+                creators["lightning strike"] = [](PlayerbotAI* ai) { return new CastLightningStrikeAction(ai); };
+                creators["earthquake"] = [](PlayerbotAI* ai) { return new CastEarthquakeAction(ai); };
+                creators["spirit link on party tank"] = [](PlayerbotAI* ai) { return new CastSpiritLinkOnPartyTankAction(ai); };
+                creators["ancestral swiftness"] = [](PlayerbotAI* ai) { return new CastAncestralSwiftnessAction(ai); };
+#endif
                 creators["lava lash"] = [](PlayerbotAI* ai) { return new CastLavaLashAction(ai); };
                 creators["fire nova"] = [](PlayerbotAI* ai) { return new CastFireNovaAction(ai); };
                 creators["ancestral spirit"] = [](PlayerbotAI* ai) { return new CastAncestralSpiritAction(ai); };

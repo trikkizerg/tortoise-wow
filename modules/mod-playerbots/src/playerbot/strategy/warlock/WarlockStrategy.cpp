@@ -187,6 +187,12 @@ void WarlockAoeStrategy::InitCombatTriggers(std::list<TriggerNode*>& triggers)
     triggers.push_back(new TriggerNode(
         "ranged medium aoe",
         NextAction::array(0, new NextAction("rain of fire", ACTION_HIGH), NULL)));
+
+#ifdef MANGOSBOT_ZERO
+    triggers.push_back(new TriggerNode(
+        "rain of fire channel check",
+        NextAction::array(0, new NextAction("cancel channel", ACTION_HIGH + 3), NULL)));
+#endif
 }
 
 void WarlockAoeStrategy::InitNonCombatTriggers(std::list<TriggerNode*>& triggers)

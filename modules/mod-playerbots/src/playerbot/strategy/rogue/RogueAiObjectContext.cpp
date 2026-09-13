@@ -217,6 +217,13 @@ namespace ai
                 creators["cloak of shadows"] = [](PlayerbotAI* ai) { return new CloakOfShadowsTrigger(ai); };
                 creators["fan of knives"] = [](PlayerbotAI* ai) { return new SpellCanBeCastedTrigger(ai, "fan of knives"); };
                 creators["riposte"] = [](PlayerbotAI* ai) { return new RiposteCastTrigger(ai); };
+#ifdef MANGOSBOT_ZERO
+                creators["surprise attack"] = [](PlayerbotAI* ai) { return new SurpriseAttackTrigger(ai); };
+                creators["noxious assault"] = [](PlayerbotAI* ai) { return new NoxiousAssaultTrigger(ai); };
+                creators["envenom"] = [](PlayerbotAI* ai) { return new EnvenomTrigger(ai); };
+                creators["shadow of death"] = [](PlayerbotAI* ai) { return new ShadowOfDeathTrigger(ai); };
+                creators["mark for death"] = [](PlayerbotAI* ai) { return new MarkForDeathTrigger(ai); };
+#endif
                 creators["apply deadly poison main hand"] = [](PlayerbotAI* ai) { return new ApplyDeadlyPoisonTrigger(ai, true); };
                 creators["apply crippling poison main hand"] = [](PlayerbotAI* ai) { return new ApplyCripplingPoisonTrigger(ai, true); };
                 creators["apply mind poison main hand"] = [](PlayerbotAI* ai) { return new ApplyMindPoisonTrigger(ai, true); };
@@ -238,6 +245,14 @@ namespace ai
             AiObjectContextInternal()
             {
                 creators["riposte"] = [](PlayerbotAI* ai) { return new CastRiposteAction(ai); };
+#ifdef MANGOSBOT_ZERO
+                creators["surprise attack"] = [](PlayerbotAI* ai) { return new CastSurpriseAttackAction(ai); };
+                creators["noxious assault"] = [](PlayerbotAI* ai) { return new CastNoxiousAssaultAction(ai); };
+                creators["envenom"] = [](PlayerbotAI* ai) { return new CastEnvenomAction(ai); };
+                creators["shadow of death"] = [](PlayerbotAI* ai) { return new CastShadowOfDeathAction(ai); };
+                creators["mark for death"] = [](PlayerbotAI* ai) { return new CastMarkForDeathAction(ai); };
+                creators["smoke bomb"] = [](PlayerbotAI* ai) { return new CastSmokeBombAction(ai); };
+#endif
                 creators["mutilate"] = [](PlayerbotAI* ai) { return new CastMutilateAction(ai); };
                 creators["sinister strike"] = [](PlayerbotAI* ai) { return new CastSinisterStrikeAction(ai); };
                 creators["hemorrhage"] = [](PlayerbotAI* ai) { return new CastHemorrhageAction(ai); };

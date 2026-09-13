@@ -67,6 +67,10 @@ void TankFeralDruidStrategy::InitCombatTriggers(std::list<TriggerNode*>& trigger
         NextAction::array(0, new NextAction("faerie fire (feral)", ACTION_HIGH), NULL)));
 
     triggers.push_back(new TriggerNode(
+        "berserk",
+        NextAction::array(0, new NextAction("berserk", ACTION_HIGH + 2), NULL)));
+
+    triggers.push_back(new TriggerNode(
         "medium rage available",
         NextAction::array(0, new NextAction("mangle (bear)", ACTION_NORMAL + 1), NULL)));
 

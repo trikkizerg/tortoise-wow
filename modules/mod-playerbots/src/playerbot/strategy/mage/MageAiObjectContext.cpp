@@ -185,6 +185,11 @@ namespace ai
                 creators["fire spells locked"] = [](PlayerbotAI* ai) { return new FireSpellsLocked(ai); };
                 creators["cold snap"] = [](PlayerbotAI* ai) { return new ColdSnapTrigger(ai); };
                 creators["ice barrier"] = [](PlayerbotAI* ai) { return new IceBarrierTrigger(ai); };
+#ifdef MANGOSBOT_ZERO
+                creators["icicles"] = [](PlayerbotAI* ai) { return new IciclesTrigger(ai); };
+                creators["icicles channel check"] = [](PlayerbotAI* ai) { return new IciclesChannelCheckTrigger(ai); };
+                creators["evocation channel check"] = [](PlayerbotAI* ai) { return new EvocationChannelCheckTrigger(ai); };
+#endif
                 creators["hot streak"] = [](PlayerbotAI* ai) { return new HotStreakTrigger(ai); };
                 creators["free fireball"] = [](PlayerbotAI* ai) { return new FireballOrFrostfireBoltFreeTrigger(ai); };
                 creators["fingers of frost"] = [](PlayerbotAI* ai) { return new FingersOfFrostTrigger(ai); };
@@ -206,6 +211,9 @@ namespace ai
                 creators["arcane power"] = [](PlayerbotAI* ai) { return new CastArcanePowerAction(ai); };
                 creators["presence of mind"] = [](PlayerbotAI* ai) { return new CastPresenceOfMindAction(ai); };
                 creators["frostbolt"] = [](PlayerbotAI* ai) { return new CastFrostboltAction(ai); };
+#ifdef MANGOSBOT_ZERO
+                creators["icicles"] = [](PlayerbotAI* ai) { return new CastIciclesAction(ai); };
+#endif
                 creators["blizzard"] = [](PlayerbotAI* ai) { return new CastBlizzardAction(ai); };
                 creators["frost nova"] = [](PlayerbotAI* ai) { return new CastFrostNovaAction(ai); };
                 creators["arcane intellect"] = [](PlayerbotAI* ai) { return new CastArcaneIntellectAction(ai); };

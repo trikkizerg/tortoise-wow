@@ -5,6 +5,71 @@
 
 using namespace ai;
 
+#ifdef MANGOSBOT_ZERO
+namespace
+{
+uint8 OwnAfflictionDotsOn(PlayerbotAI* ai, Unit* target)
+{
+    static const char* dots[] = { "corruption", "siphon life", "curse of agony", "curse of doom" };
+    uint8 count = 0;
+    for (const char* dot : dots)
+    {
+        if (ai->HasAura(dot, target, false, true))
+            ++count;
+    }
+    return count;
+}
+}
+
+bool RainOfFireChannelCheckTrigger::IsActive()
+{
+    if (Spell* spell = bot->GetCurrentSpell(CURRENT_CHANNELED_SPELL))
+    {
+        if (spell->m_spellInfo)
+        {
+            uint32 id = spell->m_spellInfo->Id;
+            if (id == 5740 || id == 6219 || id == 11677 || id == 11678 || id == 27212)
+                return AI_VALUE(uint8, "aoe count") < 2;
+        }
+    }
+    return false;
+}
+
+bool DarkHarvestTrigger::IsActive()
+{
+    if (!SpellCanBeCastedTrigger::IsActive())
+        return false;
+
+    Unit* target = GetTarget();
+    return target && target->IsAlive() && OwnAfflictionDotsOn(ai, target) >= 2;
+}
+
+bool DarkHarvestChannelCheckTrigger::IsActive()
+{
+    if (Spell* spell = bot->GetCurrentSpell(CURRENT_CHANNELED_SPELL))
+    {
+        if (spell->m_spellInfo && spell->m_spellInfo->Id == 52550)
+        {
+            Unit* target = AI_VALUE(Unit*, "current target");
+            if (!target || !target->IsAlive())
+                return false;
+            return OwnAfflictionDotsOn(ai, target) == 0;
+        }
+    }
+    return false;
+}
+
+bool PowerOverwhelmingTrigger::IsActive()
+{
+    if (!SpellCanBeCastedTrigger::IsActive())
+        return false;
+
+    Unit* pet = AI_VALUE(Unit*, "pet target");
+    Unit* target = GetTarget();
+    return pet && pet->IsAlive() && pet->HealthAbovePct(60) && target && target->IsAlive();
+}
+#endif
+
 bool DemonArmorTrigger::IsActive() 
 {
 	Unit* target = GetTarget();
