@@ -1,4 +1,5 @@
-﻿/*
+#include "Util/DevDiagnostics.h"
+/*
  * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
  * Copyright (C) 2009-2011 MaNGOSZero <https://github.com/mangos/zero>
  * Copyright (C) 2011-2016 Nostalrius <https://nostalrius.org>
@@ -20,6 +21,7 @@
  */
 
 #include "Channel.h"
+#include "ScriptObjects.h"
 #include "ObjectMgr.h"
 #include "World.h"
 #include "SocialMgr.h"
@@ -708,12 +710,21 @@ void Channel::Say(ObjectGuid guid, const char *text, uint32 lang, bool skipCheck
     }
     else
     {
+        if (pPlayer && pPlayer->ToPlayer() && lang != LANG_ADDON)
+            ScriptRegistry<PlayerScript>::ForEachEnabledHook(PLAYERHOOK_ON_CHAT_CHANNEL,
+                [&](PlayerScript* s) { s->OnChatChannel(pPlayer->ToPlayer(), GetName().c_str(), text); });
+
         SendToAll(&data, (!skipCheck && !m_players[guid].IsModerator()) ? guid : ObjectGuid());
     }
 }
 
 void Channel::AsyncSay(ObjectGuid guid, const char* what, uint32 lang /*= LANG_UNIVERSAL*/, bool skipCheck /*= false*/)
 {
+    // Said by somebody with no client. Taken here, on the caller's thread, rather than in the
+    // broadcaster that consumes the queue on another one.
+    ScriptRegistry<WorldScript>::ForEachEnabledHook(WORLDHOOK_ON_CHANNEL_BROADCAST,
+        [&](WorldScript* s) { s->OnChannelBroadcast(guid.GetCounter(), GetName().c_str(), what); });
+
     sWorld.GetChannelBroadcaster()->EnqueueMessage(what, GetName(), guid, lang, GetTeam(), skipCheck);
 }
 
@@ -816,11 +827,24 @@ void Channel::SetOwner(ObjectGuid guid, bool exclaim)
 
 void Channel::SendToAll(WorldPacket *data, ObjectGuid guid)
 {
-    for (const auto& itr : m_players)
+    MANTECH_DIAG_SCOPE(Packet, 32, "channel_broadcast");
+    // GetPlayer's temporary shared_ptr owns only a forwarding wrapper, not the
+    // native player. Resolve the same native object immediately before delivery
+    // without allocating a wrapper/control block for every broadcast recipient.
+    auto deliver = [data, guid](auto* player)
     {
-        if (PlayerPointer pPlayer = GetPlayer(itr.first))
-            if (!pPlayer->GetSocial()->HasIgnore(guid))
-                pPlayer->GetSession()->SendPacket(data);
+        if (player && !player->GetSocial()->HasIgnore(guid))
+            player->GetSession()->SendPacket(data);
+    };
+    if (m_area_dependant)
+    {
+        for (const auto& itr : m_players)
+            deliver(sObjectAccessor.FindPlayerNotInWorld(itr.first));
+    }
+    else
+    {
+        for (const auto& itr : m_players)
+            deliver(sObjectAccessor.FindMasterPlayer(itr.first));
     }
 }
 

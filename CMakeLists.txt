@@ -21,6 +21,15 @@ cmake_minimum_required(VERSION 3.1...3.29)
 
 project(TurtleWoW)
 include(FetchContent)
+option(MANTECH_DEV_DIAGNOSTICS "Build bounded development timing and memory observer" OFF)
+option(MANTECH_PROFILE_ALLOCATIONS "Build optional bounded C++ allocation-stack sampler" OFF)
+if((MANTECH_DEV_DIAGNOSTICS OR MANTECH_PROFILE_ALLOCATIONS) AND NOT WIN32)
+  message(FATAL_ERROR "The development observer and allocation sampler currently require Windows")
+endif()
+if(MANTECH_DEV_DIAGNOSTICS)
+  # Native subdirectories replace COMPILE_DEFINITIONS from this shared list.
+  list(APPEND DEFINITIONS MANTECH_DEV_DIAGNOSTICS)
+endif()
 
 # Allow -DACE_ROOT, -DTBB_ROOT, etc.
 if(${CMAKE_VERSION} VERSION_GREATER "3.11")
@@ -83,7 +92,9 @@ option(BUILD_PLAYERBOTS "Build the cmangos/playerbots subsystem" OFF)
 # modules/mod-playerbots. A from-scratch Linux build with the documented cmake
 # line (no -DMODULES) died exactly there (2026-09-05). The subsystem IS a
 # module, so switch the module build on for it.
-if(BUILD_PLAYERBOTS AND MODULES STREQUAL "disabled")
+if(BUILD_PLAYERBOTS AND MODULES STREQUAL "disabled" AND
+   NOT MODULE_MANTECHPLAYERBOTS STREQUAL "static" AND
+   NOT MODULE_MANTECHPLAYERBOTS STREQUAL "dynamic")
   # Enable ONLY the requested subsystem, not every optional module. Changing
   # MODULES globally also activates DungeonClear and adds a mandatory config
   # file to existing deployments that previously ran just mod-playerbots.
@@ -208,8 +219,12 @@ if(WIN32)
   endif()
   
   # Added by Giperion, in WIN32 output all compiled files in one directory
-  set( CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin )
-  set( CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib )
+  if(NOT CMAKE_RUNTIME_OUTPUT_DIRECTORY)
+    set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/bin)
+  endif()
+  if(NOT CMAKE_LIBRARY_OUTPUT_DIRECTORY)
+    set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_SOURCE_DIR}/lib)
+  endif()
   # Allow creating folders in solution
   set_property(GLOBAL PROPERTY USE_FOLDERS ON)
 endif()
@@ -414,9 +429,18 @@ else()
     set(rev_date "1970-01-01 00:00:00 +0000")
     set(rev_hash "unknown")
   endif()
-  
-  configure_file(${CMAKE_CURRENT_SOURCE_DIR}/cmake/revision.h.cmake ${CMAKE_CURRENT_SOURCE_DIR}/src/shared/revision.h)
 endif()
+
+# Keep generated revision metadata out of the tracked source tree.
+# The generated include directory is placed first so <revision.h>
+# resolves to this build-specific header rather than src/shared/revision.h.
+file(MAKE_DIRECTORY "${CMAKE_BINARY_DIR}/generated")
+configure_file(
+  "${CMAKE_CURRENT_SOURCE_DIR}/cmake/revision.h.cmake"
+  "${CMAKE_BINARY_DIR}/generated/revision.h"
+  @ONLY
+)
+include_directories(BEFORE "${CMAKE_BINARY_DIR}/generated")
 
 message(STATUS "")
 message(STATUS "Core revision: ${rev_hash} ${rev_date} ")
@@ -625,16 +649,23 @@ set(CMAKE_INSTALL_RPATH ${LIBS_DIR})
 set(CMAKE_INSTALL_RPATH_USE_LINK_PATH TRUE)
 
 if(WIN32)
+  if(DEP_ARCH STREQUAL "x64")
+    set(OPENSSL_DLL_SUFFIX "-x64")
+  else()
+    set(OPENSSL_DLL_SUFFIX "")
+  endif()
   install(
     FILES
-      ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_release/libeay32.dll
+      ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_release/libcrypto-1_1${OPENSSL_DLL_SUFFIX}.dll
+      ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_release/libssl-1_1${OPENSSL_DLL_SUFFIX}.dll
       ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_release/libmySQL.dll
     DESTINATION ${LIBS_DIR}
     CONFIGURATIONS Release
   )
   install(
     FILES
-      ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_debug/libeay32.dll
+      ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_debug/libcrypto-1_1${OPENSSL_DLL_SUFFIX}.dll
+      ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_debug/libssl-1_1${OPENSSL_DLL_SUFFIX}.dll
       ${CMAKE_SOURCE_DIR}/dep/windows/lib/${DEP_ARCH}_debug/libmySQL.dll
     DESTINATION ${LIBS_DIR}
     CONFIGURATIONS Debug

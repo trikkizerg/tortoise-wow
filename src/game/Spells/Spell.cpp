@@ -1,3 +1,4 @@
+#include "Util/DevDiagnostics.h"
 /*
  * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
  * Copyright (C) 2009-2011 MaNGOSZero <https://github.com/mangos/zero>
@@ -3774,14 +3775,13 @@ void Spell::cancel()
 
 void Spell::cast(bool skipCheck)
 {
-    // BotActionLog hook: cast start. Logged BEFORE the MAX_SPELL_ID guard
-    // so even rejected casts show up.
+    // Include attempted casts rejected by the native spell-ID guard below.
+    ScriptRegistry<AllSpellScript>::ForEach([&](AllSpellScript* script)
     {
-        extern void BotActionLog_LogCastStart(WorldObject* caster, uint32 spellId, uint64 targetGuidRaw, uint32 castTimeMs);
-        ObjectGuid tgt = m_targets.getUnitTargetGuid();
-        if (!tgt) tgt = m_targets.getGOTargetGuid();
-        BotActionLog_LogCastStart(m_caster, m_spellInfo->Id, tgt.GetRawValue(), m_casttime);
-    }
+        ObjectGuid target = m_targets.getUnitTargetGuid();
+        if (!target) target = m_targets.getGOTargetGuid();
+        script->OnCastAttempt(m_caster, m_spellInfo->Id, target.GetRawValue(), m_casttime);
+    });
 
     if (m_spellInfo->Id <= 0 || m_spellInfo->Id > MAX_SPELL_ID)
         return;
@@ -4191,6 +4191,7 @@ void Spell::SendSpellCooldown()
 
 void Spell::update(uint32 difftime)
 {
+    MANTECH_DIAG_SCOPE(Spell, 32, "spell_update");
     // update pointers based at it's GUIDs
     UpdatePointers();
 
@@ -4494,12 +4495,10 @@ void Spell::finish(bool ok)
 
     m_spellState = SPELL_STATE_FINISHED;
 
-    // BotActionLog hook: cast result. `ok` is true on success,
-    // false on cancel/interrupt/fail.
+    ScriptRegistry<AllSpellScript>::ForEach([&](AllSpellScript* script)
     {
-        extern void BotActionLog_LogCastResult(WorldObject* caster, uint32 spellId, uint8 result, const char* phase);
-        BotActionLog_LogCastResult(m_caster, m_spellInfo->Id, ok ? 0 : 1, "finish");
-    }
+        script->OnCastFinished(m_caster, m_spellInfo->Id, ok);
+    });
 
     // Clear the creature's casting target so it faces victim
     if (m_setCreatureTarget)
@@ -6131,10 +6130,10 @@ SpellCastResult Spell::CheckCast(bool strict)
                     return SPELL_FAILED_DONT_REPORT;
                 }
 
-                // Penqle's GetSession()->GetBot() guard removed (stub binned).
+                // Taming preserves native pet, charm and persisted-pet checks.
                 // cmangos's bot guard relies on isRealPlayer(); not needed here.
                 if (plrCaster->GetPetGuid() || plrCaster->GetCharmGuid() ||
-                    sCharacterDatabaseCache.GetCharacterPetByOwner(plrCaster->GetGUIDLow()))
+                   sCharacterDatabaseCache.GetCharacterPetByOwner(plrCaster->GetGUIDLow()))
                 {
                     plrCaster->SendPetTameFailure(PETTAME_ANOTHERSUMMONACTIVE);
                     return SPELL_FAILED_DONT_REPORT;
@@ -7075,6 +7074,29 @@ bool Spell::CanAutoCast(Unit* target)
     return false;                                           //target invalid
 }
 
+std::pair<float, float> Spell::GetGenericRangeBounds(bool strict, Unit* target)
+{
+    // Add up to ~5 yds "give" for non strict (landing) check and leeway bonus if both units are moving
+    const float leeway = GetAffectiveCaster() ? GetAffectiveCaster()->GetLeewayBonusRange(target, true) : 0.0f;
+    float const range_mod = (strict ? (m_caster->IsPlayer() ? 1.25f : 0.0f) : (m_caster->IsPlayer() ? 6.25f : 2.25f)) + leeway;
+
+    SpellRangeEntry const* srange = sSpellRangeStore.LookupEntry(m_spellInfo->rangeIndex);
+    float max_range = GetSpellMaxRange(srange);
+    float min_range = GetSpellMinRange(srange);
+
+    if (m_casterUnit)
+    {
+        if (Player* modOwner = m_casterUnit->GetSpellModOwner())
+            modOwner->ApplySpellMod(m_spellInfo->Id, SPELLMOD_RANGE, max_range, this);
+
+        max_range += m_casterUnit->GetTotalAuraRangeModifier(SPELL_AURA_MOD_ATTACK_AND_SPELL_RANGE) / 1000.0f;
+    }
+
+    max_range += range_mod;
+
+    return {min_range, max_range};
+}
+
 SpellCastResult Spell::CheckRange(bool strict)
 {
     Unit *target = m_targets.getUnitTarget();
@@ -7123,23 +7145,9 @@ SpellCastResult Spell::CheckRange(bool strict)
         }
     }
 
-    // Add up to ~5 yds "give" for non strict (landing) check and leeway bonus if both units are moving
-    const float leeway = GetAffectiveCaster() ? GetAffectiveCaster()->GetLeewayBonusRange(target, true) : 0.0f;
-    float const range_mod = (strict ? (m_caster->IsPlayer() ? 1.25f : 0.0f) : (m_caster->IsPlayer() ? 6.25f : 2.25f)) + leeway;
-
-    SpellRangeEntry const* srange = sSpellRangeStore.LookupEntry(m_spellInfo->rangeIndex);
-    float max_range = GetSpellMaxRange(srange);
-    float min_range = GetSpellMinRange(srange);
-
-    if (m_casterUnit)
-    {
-        if (Player* modOwner = m_casterUnit->GetSpellModOwner())
-            modOwner->ApplySpellMod(m_spellInfo->Id, SPELLMOD_RANGE, max_range, this);
-
-        max_range += m_casterUnit->GetTotalAuraRangeModifier(SPELL_AURA_MOD_ATTACK_AND_SPELL_RANGE) / 1000.0f;
-    }
-
-    max_range += range_mod;
+    auto const bounds = GetGenericRangeBounds(strict, target);
+    float const min_range = bounds.first;
+    float const max_range = bounds.second;
 
     GameObject* go = m_targets.getGOTarget(); // Check range for gobjects (lock picking)
     if (go && m_caster->IsPlayer())

@@ -75,7 +75,6 @@ include_directories(
   ${CMAKE_SOURCE_DIR}/src/game/Movement/spline
   ${CMAKE_SOURCE_DIR}/src/game/Objects
   ${CMAKE_SOURCE_DIR}/src/game/OutdoorPvP
-  # PlayerBots include dir removed - Penqle stub binned
   ${CMAKE_SOURCE_DIR}/src/game/Protocol
   ${CMAKE_SOURCE_DIR}/src/game/Spells
   ${CMAKE_SOURCE_DIR}/src/game/Threat
@@ -237,4 +236,15 @@ if(WIN32 AND MSVC)
   # Every configuration, not just Debug: a Release minidump needs the symbols
   # just as much, and RelWithDebInfo produced a .pdb that never got installed.
   install(FILES $<TARGET_PDB_FILE:${EXECUTABLE_NAME}> DESTINATION ${BIN_DIR} OPTIONAL)
+endif()
+
+if(MANTECH_PROFILE_ALLOCATIONS)
+  if(NOT USE_STD_MALLOC)
+    message(FATAL_ERROR "Allocation sampling requires the standard allocator configuration")
+  endif()
+  target_sources(${EXECUTABLE_NAME} PRIVATE AllocationProfile.cpp)
+  target_link_libraries(${EXECUTABLE_NAME} dbghelp)
+endif()
+if(MANTECH_DEV_DIAGNOSTICS)
+  target_link_libraries(${EXECUTABLE_NAME} psapi)
 endif()

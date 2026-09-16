@@ -1,3 +1,4 @@
+#include "Util/DevDiagnostics.h"
 /*
  * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
  * Copyright (C) 2009-2011 MaNGOSZero <https://github.com/mangos/zero>
@@ -227,6 +228,7 @@ Unit::Unit()
     m_isSpawningLinked = false;
 
     ++PerfStats::g_totalUnits;
+    ManTech::MemoryLedger::Add(ManTech::MemoryKind::Units, sizeof(Unit));
 }
 
 Unit::~Unit()
@@ -252,6 +254,7 @@ Unit::~Unit()
     MANGOS_ASSERT(!m_needUpdateVisibility);
 
     --PerfStats::g_totalUnits;
+    ManTech::MemoryLedger::Remove(ManTech::MemoryKind::Units, sizeof(Unit));
 }
 
 void Unit::Update(uint32 update_diff, uint32 p_time)
@@ -758,12 +761,8 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
     if (pVictim && pVictim->IsPlayer() && pVictim->ToPlayer()->m_disableGeneralDamage == true)
         return 0;
 
-    // bot logging suite — hook damage events.
-    // Wrapper checks attacker AND victim for bot AI; non-bot ↔ non-bot
-    // case is two cheap pointer-null-checks. Sampled 1/5 to avoid spam
-    // in heavy-DoT raid scenarios.
+    // Observe the attempted damage before native modifiers run.
     {
-        extern void BotActionLog_LogDamage(Unit* attacker, Unit* victim, uint32 damage, uint32 spellId, const char* damageType);
         const char* dt = "?";
         switch (damagetype) {
             case DIRECT_DAMAGE: dt = "DIRECT"; break;
@@ -773,7 +772,10 @@ uint32 Unit::DealDamage(Unit* pVictim, uint32 damage, CleanDamage const* cleanDa
             case NODAMAGE: dt = "NODAMAGE"; break;
             case SELF_DAMAGE: dt = "SELF"; break;
         }
-        BotActionLog_LogDamage(this, pVictim, damage, spellProto ? spellProto->Id : 0, dt);
+        ScriptRegistry<UnitScript>::ForEachEnabledHook(UNITHOOK_ON_DAMAGE_ATTEMPT, [&](UnitScript* script)
+        {
+            script->OnDamageAttempt(this, pVictim, damage, spellProto ? spellProto->Id : 0, dt);
+        });
     }
 
     if (pVictim)
@@ -1832,9 +1834,12 @@ void Unit::CalculateMeleeDamage(Unit* pVictim, uint32 damage, CalcDamageInfo *da
             // High end : 1.2 - 0.03*(defense - skill) min of 0.2 and max of 0.99
             // If the attacker is a caster then this is reduced by 0.3
 
-            int32 skillDiff = pVictim->GetDefenseSkillValue(this) - GetWeaponSkillValue(damageInfo->attackType, pVictim);
-            float low = 1.3f - 0.05f * skillDiff;
-            float high = 1.2f - 0.03f * skillDiff;
+            int32 const weaponSkill = GetWeaponSkillValue(damageInfo->attackType, pVictim);
+            int32 skillDiff = pVictim->GetDefenseSkillValue(this) - weaponSkill;
+            int32 const extraWeaponSkill = std::max(weaponSkill - int32(GetSkillMaxForLevel(pVictim)), 0);
+
+            float low = 1.3f - 0.05f * skillDiff - 0.03f * extraWeaponSkill;
+            float high = 1.2f - 0.03f * skillDiff - 0.01f * extraWeaponSkill;
             float lowCap = 0.91f;
             float highCap = 0.99f;
 
@@ -2996,10 +3001,8 @@ float Unit::MeleeMissChanceCalc(Unit const* pVictim, WeaponAttackType attType) c
     // PvP - PvE melee chances
     if (pVictim->IsPlayer())
         skillDiffBonus = skillDiff * 0.04f;
-    else if (skillDiff < -10)
-        skillDiffBonus = skillDiff * 0.2f;
     else
-        skillDiffBonus = skillDiff * 0.1f;
+        skillDiffBonus = skillDiff * 0.2f;
     missChance -= skillDiffBonus;
 
     // Low level reduction
@@ -3027,12 +3030,6 @@ float Unit::MeleeMissChanceCalc(Unit const* pVictim, WeaponAttackType attType) c
                 hitChance += owner->m_modSpellHitChance * aura->GetModifier()->m_amount / 100.0f;
         }
     }
-
-    // There is some code in 1.12 that explicitly adds a modifier that causes the first 1% of +hit gained from
-    // talents or gear to be ignored against monsters with more than 10 Defense Skill above the attacking player’s Weapon Skill.
-    // https://us.forums.blizzard.com/en/wow/t/bug-hit-tables/185675/33
-    if (skillDiff < -10 && hitChance > 0.0f)
-        hitChance -= 1.0f;
 
     missChance -= hitChance;
 
@@ -3179,6 +3176,7 @@ float Unit::GetUnitCriticalChance(WeaponAttackType attackType, Unit const* pVict
 
 void Unit::_UpdateSpells(uint32 time)
 {
+    MANTECH_DIAG_SCOPE(Auras, 32, "unit_spells_and_auras");
     if (m_currentSpells[CURRENT_AUTOREPEAT_SPELL])
         _UpdateAutoRepeatSpell();
 
@@ -3649,17 +3647,11 @@ bool Unit::AddSpellAuraHolder(SpellAuraHolder *holder)
 {
     SpellEntry const* aurSpellInfo = holder->GetSpellProto();
 
-    // aura-attempt hook. Logged BEFORE any
-    // early-returns (refresh, stack, dead target, debuff-limit, etc.) so the bot
-    // log captures every aura that any code path tries to put on a bot — even
-    // those that get rejected or merged into an existing holder. This was needed
-    // to debug a self-applied Bash 25515 that was invisible to the post-success
-    // hook below (refreshes never reach it). Logged with tag AURA_ATTEMPT so it's
-    // distinguishable from the AURA_APPLY tag that fires on confirmed first-apply.
+    // Observe attempts before refresh/stack/eligibility early returns.
+    ScriptRegistry<UnitScript>::ForEachEnabledHook(UNITHOOK_ON_AURA_HOLDER_ATTEMPT, [&](UnitScript* script)
     {
-        extern void BotActionLog_LogAuraAttempt(Unit* target, uint32 spellId, int32 durationMs, uint64 casterGuidRaw);
-        BotActionLog_LogAuraAttempt(this, holder->GetId(), holder->GetAuraMaxDuration(), holder->GetCasterGuid().GetRawValue());
-    }
+        script->OnAuraHolderAttempt(this, holder->GetId(), holder->GetAuraMaxDuration(), holder->GetCasterGuid().GetRawValue());
+    });
 
     // ghost spell check, allow apply any auras at player loading in ghost mode (will be cleanup after load)
     if (!IsAlive() && !aurSpellInfo->IsDeathPersistentSpell() && !aurSpellInfo->CanTargetDeadTarget() &&
@@ -3879,14 +3871,16 @@ bool Unit::AddSpellAuraHolder(SpellAuraHolder *holder)
     // When we call _AddSpellAuraHolder, we must have a free aura slot
     holder->_AddSpellAuraHolder();
 
-    // bot logging suite — hook aura applies. The
-    // wrapper checks if `this` is a bot Player; non-bots cost only the
-    // GetPlayerbotAI() null check. Resolves at final mangosd link.
-    {
-        extern void BotActionLog_LogAuraApply(Unit* target, uint32 spellId, int32 durationMs, uint64 casterGuidRaw);
-        int32 durMs = holder->GetAuraMaxDuration();
-        BotActionLog_LogAuraApply(this, holder->GetId(), durMs, holder->GetCasterGuid().GetRawValue());
-    }
+    // Module hook: a positive aura from another player, first application only --
+    // a refresh is not a new gift.
+    if (holder->IsPositive())
+        if (Unit* caster = holder->GetCaster())
+            if (caster != this && caster->IsPlayer())
+            {
+                const uint32 buffId = holder->GetId();
+                ScriptRegistry<UnitScript>::ForEachEnabledHook(UNITHOOK_ON_BUFF_RECEIVED,
+                    [&](UnitScript* s) { s->OnBuffReceived(this, (Player*)caster, buffId); });
+            }
 
     return true;
 }
@@ -3936,7 +3930,7 @@ bool Unit::RemoveAuraDueToDebuffLimit(SpellAuraHolder* currentAura)
 void Unit::AddAuraToModList(Aura *aura)
 {
     if (aura->GetModifier()->m_auraname < TOTAL_AURAS)
-        m_modAuras[aura->GetModifier()->m_auraname].push_back(aura);
+        m_modAuras.Mutable(aura->GetModifier()->m_auraname).push_back(aura);
 }
 
 bool Unit::RemoveNoStackAurasDueToAuraHolder(SpellAuraHolder *holder)
@@ -4462,12 +4456,11 @@ void Unit::DeleteAuraHolder(SpellAuraHolder *holder)
 
 void Unit::RemoveSpellAuraHolder(SpellAuraHolder *holder, AuraRemoveMode mode)
 {
-    // bot logging suite — hook aura removes. Logged
-    // BEFORE the holder is destroyed so the caster GUID is still valid.
+    // Observe removal while the holder and caster identity remain valid.
+    ScriptRegistry<UnitScript>::ForEachEnabledHook(UNITHOOK_ON_AURA_HOLDER_REMOVAL, [&](UnitScript* script)
     {
-        extern void BotActionLog_LogAuraRemove(Unit* target, uint32 spellId, uint64 casterGuidRaw);
-        BotActionLog_LogAuraRemove(this, holder->GetId(), holder->GetCasterGuid().GetRawValue());
-    }
+        script->OnAuraHolderRemoval(this, holder->GetId(), holder->GetCasterGuid().GetRawValue());
+    });
 
     // Statue unsummoned at holder remove
     Totem* statue = nullptr;
@@ -4551,7 +4544,7 @@ void Unit::RemoveAura(Aura *Aur, AuraRemoveMode mode)
 {
     // remove from list before mods removing (prevent cyclic calls, mods added before including to aura list - use reverse order)
     if (Aur->GetModifier()->m_auraname < TOTAL_AURAS)
-        m_modAuras[Aur->GetModifier()->m_auraname].remove(Aur);
+        m_modAuras.Mutable(Aur->GetModifier()->m_auraname).remove(Aur);
 
     // Set remove mode
     Aur->SetRemoveMode(mode);
@@ -6143,7 +6136,7 @@ bool Unit::IsImmuneToDamage(SpellSchoolMask shoolMask, SpellEntry const* spellIn
         return false;
 
     // If m_immuneToDamage type contain magic, IMMUNE damage.
-    SpellImmuneList const& damageList = m_spellImmune[IMMUNITY_DAMAGE];
+    SpellImmuneList const& damageList = m_spellImmune.Read(IMMUNITY_DAMAGE);
     for (const auto& itr : damageList)
     {
         if (itr.type & shoolMask)
@@ -6153,7 +6146,7 @@ bool Unit::IsImmuneToDamage(SpellSchoolMask shoolMask, SpellEntry const* spellIn
     if (!spellInfo || !spellInfo->HasAttribute(SPELL_ATTR_EX2_NO_SCHOOL_IMMUNITIES))
     {
         // If m_immuneToSchool type contain this school type, IMMUNE damage.
-        SpellImmuneList const& schoolList = m_spellImmune[IMMUNITY_SCHOOL];
+        SpellImmuneList const& schoolList = m_spellImmune.Read(IMMUNITY_SCHOOL);
         for (const auto& itr : schoolList)
         {
             if (itr.type & shoolMask)
@@ -6183,7 +6176,7 @@ bool Unit::IsImmuneToSpell(SpellEntry const* spellInfo, bool /*castOnSelf*/) con
     // Should either check self cast or passive spell here, not sure which is better.
     if (!spellInfo->HasAttribute(SPELL_ATTR_PASSIVE))
     {
-        SpellImmuneList const& dispelList = m_spellImmune[IMMUNITY_DISPEL];
+        SpellImmuneList const& dispelList = m_spellImmune.Read(IMMUNITY_DISPEL);
         for (const auto& itr : dispelList)
         {
             if (itr.type == spellInfo->Dispel)
@@ -6205,7 +6198,7 @@ bool Unit::IsImmuneToSpell(SpellEntry const* spellInfo, bool /*castOnSelf*/) con
      && !spellInfo->HasAttribute(SPELL_ATTR_EX_DISPEL_AURAS_ON_IMMUNITY)            // can remove immune (by dispell or immune it)
      && !spellInfo->HasAttribute(SPELL_ATTR_EX2_NO_SCHOOL_IMMUNITIES))
     {
-        SpellImmuneList const& schoolList = m_spellImmune[IMMUNITY_SCHOOL];
+        SpellImmuneList const& schoolList = m_spellImmune.Read(IMMUNITY_SCHOOL);
         for (const auto& itr : schoolList)
         {
             if (itr.type & spellInfo->GetSpellSchoolMask())
@@ -6225,7 +6218,7 @@ bool Unit::IsImmuneToSpell(SpellEntry const* spellInfo, bool /*castOnSelf*/) con
 
     if (uint32 mechanic = spellInfo->Mechanic)
     {
-        SpellImmuneList const& mechanicList = m_spellImmune[IMMUNITY_MECHANIC];
+        SpellImmuneList const& mechanicList = m_spellImmune.Read(IMMUNITY_MECHANIC);
         for (const auto& itr : mechanicList)
         {
             if (itr.type == mechanic)
@@ -6278,7 +6271,7 @@ bool Unit::IsImmuneToSpellEffect(SpellEntry const* spellInfo, SpellEffectIndex i
 {
     //If m_immuneToEffect type contain this effect type, IMMUNE effect.
     uint32 effect = spellInfo->Effect[index];
-    SpellImmuneList const& effectList = m_spellImmune[IMMUNITY_EFFECT];
+    SpellImmuneList const& effectList = m_spellImmune.Read(IMMUNITY_EFFECT);
     for (const auto& itr : effectList)
     {
         if (itr.type == effect)
@@ -6297,7 +6290,7 @@ bool Unit::IsImmuneToSpellEffect(SpellEntry const* spellInfo, SpellEffectIndex i
 
     if (uint32 mechanic = spellInfo->EffectMechanic[index])
     {
-        SpellImmuneList const& mechanicList = m_spellImmune[IMMUNITY_MECHANIC];
+        SpellImmuneList const& mechanicList = m_spellImmune.Read(IMMUNITY_MECHANIC);
         for (const auto& itr : mechanicList)
         {
             if (itr.type == spellInfo->EffectMechanic[index])
@@ -6333,7 +6326,7 @@ bool Unit::IsImmuneToSpellEffect(SpellEntry const* spellInfo, SpellEffectIndex i
     uint32 aura = spellInfo->EffectApplyAuraName[index];
     if (aura)
     {
-        SpellImmuneList const& list = m_spellImmune[IMMUNITY_STATE];
+        SpellImmuneList const& list = m_spellImmune.Read(IMMUNITY_STATE);
         for (const auto& itr : list)
         {
             if (itr.type == aura)
@@ -6359,7 +6352,7 @@ bool Unit::IsImmuneToSchool(SpellEntry const* spellInfo, uint8 effectMask) const
     if (!spellInfo->HasAttribute(SPELL_ATTR_EX_DISPEL_AURAS_ON_IMMUNITY)           // can remove immune (by dispell or immune it)
      && !spellInfo->HasAttribute(SPELL_ATTR_EX2_NO_SCHOOL_IMMUNITIES))
     {
-        SpellImmuneList const& schoolList = m_spellImmune[IMMUNITY_SCHOOL];
+        SpellImmuneList const& schoolList = m_spellImmune.Read(IMMUNITY_SCHOOL);
         for (auto itr : schoolList)
         {
             SpellEntry const* pImmunitySpell = sSpellMgr.GetSpellEntry(itr.spellId);
@@ -7249,9 +7242,9 @@ void Unit::UpdateVisibilityAndView()
     static const AuraType auratypes[] = {SPELL_AURA_BIND_SIGHT, SPELL_AURA_FAR_SIGHT, SPELL_AURA_NONE};
     for (AuraType const* type = &auratypes[0]; *type != SPELL_AURA_NONE; ++type)
     {
-        AuraList& alist = m_modAuras[*type];
-        if (alist.empty())
+        if (m_modAuras[*type].empty())
             continue;
+        AuraList& alist = m_modAuras.Mutable(*type);
 
         for (AuraList::iterator it = alist.begin(); it != alist.end();)
         {
@@ -11421,7 +11414,7 @@ bool Unit::IsImmuneToSchoolMask(uint32 schoolMask) const
 
 bool Unit::IsImmuneToMechanic(Mechanics mechanic) const
 {
-    SpellImmuneList const& mechanicList = m_spellImmune[IMMUNITY_MECHANIC];
+    SpellImmuneList const& mechanicList = m_spellImmune.Read(IMMUNITY_MECHANIC);
     for (const auto& itr : mechanicList)
         if (itr.type == mechanic)
             return true;

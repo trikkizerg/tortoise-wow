@@ -1,3 +1,4 @@
+#include "Util/DevDiagnostics.h"
 /*
  * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
  * Copyright (C) 2009-2011 MaNGOSZero <https://github.com/mangos/zero>
@@ -653,6 +654,52 @@ void TradeData::SetAccepted(bool state, bool crosssend /*= false*/)
 }
 
 //== Player ====================================================
+
+// Server-side trade initiation. Preserve the native initiation restrictions;
+// items, money and acceptance remain in HandleAcceptTradeOpcode. Call only
+// while both players are owned by the caller's execution domain.
+bool Player::BeginTradeWith(Player* other)
+{
+    if (!other || other == this || !GetSession() || !other->GetSession())
+        return false;
+    if (GetSession()->IsFingerprintBanned())
+        return false;
+    if (m_trade || other->m_trade)
+        return false;
+    if (!IsAlive() || !other->IsAlive())
+        return false;
+    if (HasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_PENDING_STUNNED) ||
+        other->HasUnitState(UNIT_STAT_STUNNED | UNIT_STAT_PENDING_STUNNED))
+        return false;
+    if (GetSession()->isLogingOut() || other->GetSession()->isLogingOut())
+        return false;
+    if (IsTaxiFlying() || other->IsTaxiFlying() || !FindMap() || !other->FindMap() ||
+        GetMap() != other->GetMap())
+        return false;
+    if (GetDistance3dToCenter(other) > TRADE_DISTANCE)
+        return false;
+    if (!sWorld.getConfig(CONFIG_BOOL_ALLOW_TWO_SIDE_INTERACTION_TRADE) && GetTeam() != other->GetTeam())
+        return false;
+    if (HandleHardcoreInteraction(other, true) != HardcoreInteractionResult::Allowed)
+        return false;
+
+#ifdef ENABLE_ELUNA
+    if (Eluna* e = GetEluna())
+        if (!e->OnTradeInit(this, other))
+            return false;
+#endif
+
+    m_trade = new TradeData(this, other);
+    other->m_trade = new TradeData(other, this);
+    m_trade->SetScamPreventionDelay(200);
+    other->m_trade->SetScamPreventionDelay(200);
+
+    WorldPacket data(SMSG_TRADE_STATUS, 12);
+    data << uint32(TRADE_STATUS_BEGIN_TRADE);
+    data << ObjectGuid(GetObjectGuid());
+    other->GetSession()->SendPacket(&data);
+    return true;
+}
 
 UpdateMask Player::updateVisualBits;
 
@@ -1645,6 +1692,7 @@ AutoAttackCheckResult Player::CanAutoAttackTarget(Unit const* pVictim) const
 
 void Player::Update(uint32 update_diff, uint32 p_time)
 {
+    MANTECH_DIAG_SCOPE(Player, 32, nullptr);
     if (!IsInWorld())
         return;
 
@@ -2037,7 +2085,7 @@ void Player::OnDisconnected()
             }, 1);
         }
 
-        // Update position after bot takes over
+        // Update position after disconnect
         // And remove movement flags, so he doesn't run into the void
         if (!GetMover()->HasUnitState(UNIT_STAT_FLEEING | UNIT_STAT_CONFUSED | UNIT_STAT_TAXI_FLIGHT))
         {
@@ -4026,22 +4074,16 @@ void Player::GiveLevel(uint32 level)
             BattleGroundTypeId bgTypeId = BattleGroundMgr::BGTemplateId(bgQueueTypeId);
             if (GetBattleGroundBracketIdFromLevel(bgTypeId, level) != GetBattleGroundBracketIdFromLevel(bgTypeId, GetLevel()))
             {
-                BattleGroundQueue& bgQueue = sBattleGroundMgr.m_BattleGroundQueues[bgQueueTypeId];
-                GroupQueueInfo ginfo;
-                if (!bgQueue.GetPlayerGroupInfoData(GetObjectGuid(), &ginfo))
-                    continue;
+                BattleGroundBracketId const oldBracketId = GetBattleGroundBracketIdFromLevel(bgTypeId, GetLevel());
 
-                BattleGround* bg = sBattleGroundMgr.GetBattleGround(ginfo.IsInvitedToBGInstanceGUID, bgTypeId);
-                if (!bg)
-                    bg = sBattleGroundMgr.GetBattleGroundTemplate(bgTypeId);
-
+                // Player::GiveLevel can run on a map worker. Keep only player-local
+                // state and the client notification here; the global queue belongs
+                // to the world thread and is cleaned up after map updates finish.
                 WorldPacket data;
-                RemoveBattleGroundQueueId(bgQueueTypeId);  // must be called this way, because if you move this call to queue->removeplayer, it causes bugs
-                sBattleGroundMgr.BuildBattleGroundStatusPacket(&data, bg, queueSlot, STATUS_NONE, 0, 0);
-                bgQueue.RemovePlayer(GetObjectGuid(), true);
-                // player left queue, we should update it
-                sBattleGroundMgr.ScheduleQueueUpdate(bgQueueTypeId, bgTypeId, GetBattleGroundBracketIdFromLevel(bgTypeId, GetLevel()));
+                RemoveBattleGroundQueueId(bgQueueTypeId);
+                sBattleGroundMgr.BuildBattleGroundStatusPacket(&data, nullptr, queueSlot, STATUS_NONE, 0, 0);
                 GetSession()->SendPacket(&data);
+                sBattleGroundMgr.ScheduleQueueBracketCleanup(GetObjectGuid(), bgQueueTypeId, bgTypeId, oldBracketId);
             }
         }
     }
@@ -4111,9 +4153,6 @@ void Player::GiveLevel(uint32 level)
     // update level to hunter/summon pet
     if (Pet* pet = GetPet())
         pet->SynchronizeLevelWithOwner();
-
-    // Penqle stub's OnLevelUp bot hook removed — cmangos's bot factory
-    // re-grants level-appropriate gear/talents via different mechanism.
 
     CheckInfernoInvite();
 
@@ -6613,9 +6652,13 @@ void Player::RepopAtGraveyard()
         if (AreaTriggerTeleport const* entrance = sObjectMgr.GetMapEntranceTrigger(GetMapId()))
         {
             ResurrectPlayer(1.0f);
-            SpawnCorpseBones();
-            TeleportTo(entrance->destination, TeleOptions);
-            return;
+            if (IsAlive())
+            {
+                SpawnCorpseBones();
+                TeleportTo(entrance->destination, TeleOptions);
+                return;
+            }
+            // Refused resurrection retains the native ghost/graveyard route.
         }
     }
     if (BattleGround *bg = GetBattleGround())
@@ -8208,7 +8251,7 @@ uint32 Player::GetGuildIdFromDB(ObjectGuid guid)
 
 uint32 Player::GetRankFromDB(ObjectGuid guid)
 {
-    QueryResult *result = CharacterDatabase.PQuery("SELECT rank FROM guild_member WHERE guid='%u'", guid.GetCounter());
+    QueryResult *result = CharacterDatabase.PQuery("SELECT `rank` FROM guild_member WHERE guid='%u'", guid.GetCounter());
     if (result)
     {
         uint32 v = result->Fetch()[0].GetUInt32();
@@ -16829,7 +16872,6 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder *holder)
 
     // check if the character's account in the db and the logged in account match.
     // player should be able to load/delete character only with correct account!
-    // (Penqle's !GetBot() bypass removed — cmangos bots use synthetic sessions.)
     if (dbAccountId != GetSession()->GetAccountId())
     {
         sLog.outError("%s loading from wrong account (is: %u, should be: %u)",
@@ -17028,9 +17070,6 @@ bool Player::LoadFromDB(ObjectGuid guid, SqlQueryHolder *holder)
             RelocateToHomebind();
         }
     }
-
-    // Penqle stub's BeforeAddToMap bot hook removed; cmangos's bot init is
-    // handled inside the bot module's BotFactory.
 
     // player bounded instance saves loaded in _LoadBoundInstances, group versions at group loading
     DungeonPersistentState* state = GetBoundInstanceSaveForSelfOrGroup(GetMapId());
@@ -18443,8 +18482,6 @@ bool Player::SaveToDB(bool online, bool force, bool direct)
     // delay auto save at any saves (manual, in code, or autosave)
     m_nextSave = sWorld.getConfig(CONFIG_UINT32_INTERVAL_SAVE);
 
-    // Penqle stub's "skip save for bots" guard removed — cmangos's bot
-    // factory persists bot characters as normal Player rows; no save skip needed.
     if (m_DbSaveDisabled)
         return false;
 
@@ -18455,7 +18492,9 @@ bool Player::SaveToDB(bool online, bool force, bool direct)
         return false;
     }
 
-    if (!CharacterDatabase.BeginTransaction(GetGUIDLow()))
+    // Native save statements are replayable as a complete transaction when the
+    // character schema is fully transactional (verified by the DB connection).
+    if (!CharacterDatabase.BeginTransaction(GetGUIDLow(), true))
         return false;
 
     m_honorMgr.Update();
@@ -18616,15 +18655,12 @@ bool Player::SaveToDB(bool online, bool force, bool direct)
     uberInsert.addUInt8(HasXPGainEnabled());
     uberInsert.addUInt32(m_extraBonusTalentCount);
     
-    if (direct)
+    // Direct saves execute the complete queued transaction synchronously below.
+    // Executing this one row early escapes rollback/replay of its child records.
+    if (!uberInsert.Execute())
     {
-        if (!uberInsert.DirectExecute())
-            return false;
-    }
-    else
-    {
-        if (!uberInsert.Execute())
-            return false;
+        CharacterDatabase.RollbackTransaction();
+        return false;
     }
 
     _SaveBGData();
@@ -25034,100 +25070,9 @@ void Player::SetFlying(bool flying)
 
 void Player::AddToArenaQueue(bool queuedAsGroup)
 {
-    if (!IsInWorld() || !IsAlive())
-        return;
-
-    // only max level
-    if (GetLevel() < sWorld.getConfig(CONFIG_UINT32_MAX_PLAYER_LEVEL))
-        return;
-
-    /* // check if in other queues
-    if (InBattleGroundQueue())
-    {
-        GetSession()->SendNotification("Unable to queue while currently in another queue.");
-        return;
-    } */
-
-    // is deserter?
-    if (!CanJoinToBattleground())
-    {
-        GetSession()->SendNotification("Unable to queue while you are marked as Deserter");
-        return;
-    }
-
-    // check existence
-    BattleGround* bg = nullptr;
-    if (!(bg = sBattleGroundMgr.GetBattleGroundTemplate(BATTLEGROUND_BR)))
-    {
-        sLog.outError("Battleground: template BG (all arenas) not found");
-        return;
-    }
-
-    BattleGroundQueueTypeId bgQueueTypeId = sBattleGroundMgr.BGQueueTypeId(bg->GetTypeID());
-    BattleGroundTypeId bgTypeId = GetBattleGroundTypeIdByMapId(bg->GetMapId());
-    BattleGroundBracketId const bgBracketId = GetBattleGroundBracketIdFromLevel(bgTypeId);
-    uint32 arenaRating = 0;
-
-    // You can't queue as group
-    Group* grp = GetGroup();
-    if (grp)
-    {
-        uint32 err = grp->CanJoinArenaQueue(bgQueueTypeId, 3, 3, sObjectMgr.GetPlayer(grp->GetLeaderGuid()));
-        if (err == BG_JOIN_ERR_GROUP_DESERTER)
-        {
-            WorldPacket data;
-            sBattleGroundMgr.BuildGroupJoinedBattlegroundPacket(&data, BG_GROUPJOIN_DESERTERS);
-            GetSession()->SendPacket(&data);
-            GetSession()->SendBattleGroundJoinError(err);
-            return;
-        }
-        else if (err != BG_JOIN_ERR_OK)
-        {
-            GetSession()->SendBattleGroundJoinError(err);
-            return;
-        }
-    }
-
-    BattleGroundQueue& bgQueue = sBattleGroundMgr.m_BattleGroundQueues[bgQueueTypeId];
-    GroupQueueInfo * ginfo = bgQueue.AddGroup(this, grp ? grp : nullptr, bgTypeId, bgBracketId, false, 0, nullptr);
-    uint32 avgTime = bgQueue.GetAverageQueueWaitTime(ginfo, bgBracketId);
-    
-    if (grp && queuedAsGroup)
-    {
-        for (GroupReference *itr = grp->GetFirstMember(); itr != nullptr; itr = itr->next())
-        {
-            Player *member = itr->getSource();
-            if (!member)
-                continue;  // this should never happen
-
-            uint32 queueSlot = member->AddBattleGroundQueueId(bgQueueTypeId); // add to queue
-            member->SetBattleGroundEntryPoint(this, false); // store entry point coords
-
-            WorldPacket data;
-            // send status packet (in queue)
-            sBattleGroundMgr.BuildBattleGroundStatusPacket(&data, bg, queueSlot, STATUS_WAIT_QUEUE, avgTime, 0);
-            member->GetSession()->SendPacket(&data);
-
-            if (grp->GetMembersCount() > 1)
-            {
-                sBattleGroundMgr.BuildGroupJoinedBattlegroundPacket(&data, bg->GetMapId());
-                member->GetSession()->SendPacket(&data);
-            }
-        }
-    }
-    else // solo
-    {
-        // already checked if queueSlot is valid, now just get it
-        uint32 queueSlot = AddBattleGroundQueueId(bgQueueTypeId);
-
-        SetBattleGroundEntryPoint(this, false);
-
-        WorldPacket data;
-        sBattleGroundMgr.BuildBattleGroundStatusPacket(&data, bg, queueSlot, STATUS_WAIT_QUEUE, avgTime, 0);
-        GetSession()->SendPacket(&data);
-    }
-
-    sBattleGroundMgr.ScheduleQueueUpdate(bgQueueTypeId, bgTypeId, bgBracketId);
+    // Gossip scripts run on map workers. BattleGroundQueue state is owned by
+    // the world thread, so only enqueue the value-only arena join request here.
+    sBattleGroundMgr.ScheduleArenaQueueJoin(GetObjectGuid(), queuedAsGroup);
 }
 
 uint16 Player::GetPureMaxSkillValue(uint32 skill) const

@@ -131,6 +131,42 @@
     ]
   },
   {
+    "name": "boss_kormok",
+    "file": "src/scripts/dungeons/scholomance/boss_kormok.cpp",
+    "line": 121,
+    "cmake_listed": true,
+    "file_loader_call_found": false,
+    "dependency_signals": [
+      "ai_update",
+      "spells",
+      "death_reset",
+      "threat"
+    ]
+  },
+  {
+    "name": "boss_headless_horseman",
+    "file": "src/scripts/dungeons/scarlet_monastery/boss_headless_horseman.cpp",
+    "line": 90,
+    "cmake_listed": true,
+    "file_loader_call_found": false,
+    "dependency_signals": [
+      "ai_update",
+      "death_reset"
+    ]
+  },
+  {
+    "name": "boss_azshir_the_sleepless",
+    "file": "src/scripts/dungeons/scarlet_monastery/boss_azshir_the_sleepless.cpp",
+    "line": 96,
+    "cmake_listed": true,
+    "file_loader_call_found": false,
+    "dependency_signals": [
+      "ai_update",
+      "spells",
+      "death_reset"
+    ]
+  },
+  {
     "name": "spell_ubrs_freeze_rookery_egg",
     "file": "src/scripts/dungeons/blackrock_spire/instance_blackrock_spire.cpp",
     "line": 1031,
@@ -172,42 +208,6 @@
       "spells",
       "death_reset",
       "timers"
-    ]
-  },
-  {
-    "name": "boss_kormok",
-    "file": "src/scripts/dungeons/scholomance/boss_kormok.cpp",
-    "line": 121,
-    "cmake_listed": true,
-    "file_loader_call_found": false,
-    "dependency_signals": [
-      "ai_update",
-      "spells",
-      "death_reset",
-      "threat"
-    ]
-  },
-  {
-    "name": "boss_headless_horseman",
-    "file": "src/scripts/dungeons/scarlet_monastery/boss_headless_horseman.cpp",
-    "line": 90,
-    "cmake_listed": true,
-    "file_loader_call_found": false,
-    "dependency_signals": [
-      "ai_update",
-      "death_reset"
-    ]
-  },
-  {
-    "name": "boss_azshir_the_sleepless",
-    "file": "src/scripts/dungeons/scarlet_monastery/boss_azshir_the_sleepless.cpp",
-    "line": 96,
-    "cmake_listed": true,
-    "file_loader_call_found": false,
-    "dependency_signals": [
-      "ai_update",
-      "spells",
-      "death_reset"
     ]
   },
   {
@@ -258,6 +258,21 @@
     ]
   },
   {
+    "name": "go_book_celebras",
+    "file": "src/scripts/dungeons/maraudon/boss_celebras_the_cursed.cpp",
+    "line": 341,
+    "cmake_listed": true,
+    "file_loader_call_found": true,
+    "dependency_signals": [
+      "ai_update",
+      "spells",
+      "death_reset",
+      "instance_state",
+      "doors",
+      "threat"
+    ]
+  },
+  {
     "name": "spell_gargoyle_stoneform",
     "file": "src/scripts/dungeons/naxxramas/instance_naxxramas.cpp",
     "line": 2113,
@@ -290,21 +305,6 @@
       "instance_state",
       "doors",
       "timers",
-      "threat"
-    ]
-  },
-  {
-    "name": "go_book_celebras",
-    "file": "src/scripts/dungeons/maraudon/boss_celebras_the_cursed.cpp",
-    "line": 341,
-    "cmake_listed": true,
-    "file_loader_call_found": true,
-    "dependency_signals": [
-      "ai_update",
-      "spells",
-      "death_reset",
-      "instance_state",
-      "doors",
       "threat"
     ]
   }

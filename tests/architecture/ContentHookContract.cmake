@@ -150,7 +150,7 @@ endif()
 message(STATUS "PASS: navigation readers/writers and terrain cleanup lifetime contracts")
 
 # Whole-map idle AI handoff, never actor-level parallel mutation.
-foreach(required "sMapMgr.IdleBotAI().Submit(runIdleBatch)" "done.get();"
+foreach(required "sMapMgr.IdleBotAI().Submit(runIdleBatch, \"idle_bot_map_batch\")" "done.get();"
     "TurtleDiagnostics::OwnerHandoff attribution" "request.stamp.Matches")
     string(FIND "${map}" "${required}" found)
     if(found EQUAL -1)
@@ -322,7 +322,7 @@ endif()
 message(STATUS "PASS: playerbot build gate preserves optional-module selection")
 file(READ "${SOURCE_ROOT}/src/game/Maps/Map.cpp" aiClockMap)
 string(FIND "${aiClockMap}" "player->GetAIElapsed(now)" clockSnapshot)
-string(FIND "${aiClockMap}" "auto execute = [this, now](Request const& request)" clockExecute)
+string(FIND "${aiClockMap}" "auto execute = [this, now](Request const& request, bool minimal)" clockExecute)
 string(FIND "${aiClockMap}" "player->ConsumeAIElapsed(now);\n        player->ClearBackgroundAIDueAge();" clockConsume)
 if(clockSnapshot LESS 0 OR clockExecute LESS clockSnapshot OR clockConsume LESS clockExecute)
     message(FATAL_ERROR "AI elapsed clock must be snapshotted before admission and consumed in valid execution")

@@ -1,3 +1,4 @@
+#include "Util/DevDiagnostics.h"
 /*
  * Copyright (C) 2005-2011 MaNGOS <http://getmangos.com/>
  * Copyright (C) 2009-2011 MaNGOSZero <https://github.com/mangos/zero>
@@ -34,6 +35,7 @@
 #include "Log.h"
 #include "Opcodes.h"
 #include "WorldSession.h"
+#include "HeadlessSessionMgr.h"
 #include "WorldPacket.h"
 #include "Weather.h"
 #include "Player.h"
@@ -70,7 +72,6 @@
 #include "LFTMgr.h"
 #include "AutoBroadCastMgr.h"
 #include "Transports/TransportMgr.h"
-// PlayerBotMgr.h removed — Penqle stub binned for cmangos port
 #include "ZoneScriptMgr.h"
 #include "CharacterDatabaseCache.h"
 #include "CreatureGroups.h"
@@ -194,6 +195,7 @@ World::World():
 
     m_timeRate = 1.0f;
     m_charDbWorkerThread    = nullptr;
+    m_headlessSessionMgr = std::make_unique<HeadlessSessionMgr>(*this);
 }
 
 /// World destructor
@@ -230,6 +232,12 @@ void World::Shutdown()
 	sGuildMgr.SaveGuildBanks();
     sWorld.KickAll();                                       // save and kick all players
     sWorld.UpdateSessions(1);                               // real players unload required UpdateSessions call
+    {
+        // Headless players also need native logout while maps, scripts and
+        // databases are alive. InternalShutdown runs after DB shutdown.
+        std::lock_guard<std::recursive_mutex> sessionLock(m_sessionUpdateMutex);
+        m_headlessSessionMgr->Shutdown();
+    }
     if (m_charDbWorkerThread && m_charDbWorkerThread->joinable())
         m_charDbWorkerThread->join();
 }
@@ -258,6 +266,8 @@ void World::InternalShutdown()
 		delete m_sessions.begin()->second;
 		m_sessions.erase(m_sessions.begin());
 	}
+
+    m_headlessSessionMgr->Shutdown();
 
 	CliCommandHolder* command = nullptr;
 	while (cliCmdQueue.next(command))
@@ -320,6 +330,59 @@ bool World::RemoveSession(uint32 id)
 void World::AddSession(WorldSession* s)
 {
     addSessQueue.add(s);
+}
+
+HeadlessSessionStartResult World::StartHeadlessSession(uint32 accountId, ObjectGuid characterGuid,
+    LocaleConstant locale, std::string const& tag)
+{
+    return m_headlessSessionMgr->Start(accountId, characterGuid, locale, tag);
+}
+
+HeadlessSessionStartResult World::StartPreparedHeadlessSession(LoginQueryHolder* holder,
+    LocaleConstant locale, std::string const& tag)
+{
+    return m_headlessSessionMgr->StartPrepared(holder, locale, tag);
+}
+
+void World::BeginHeadlessStopDeferral() { m_headlessSessionMgr->BeginStopDeferral(); }
+void World::EndHeadlessStopDeferral() { m_headlessSessionMgr->EndStopDeferral(); }
+
+bool World::StopHeadlessSession(ObjectGuid characterGuid, bool save)
+{
+    return m_headlessSessionMgr->Stop(characterGuid, save);
+}
+
+HeadlessSessionState World::GetHeadlessSessionState(ObjectGuid characterGuid) const
+{
+    return m_headlessSessionMgr->GetState(characterGuid);
+}
+
+void World::HandleHeadlessLoginCallback(LoginQueryHolder* holder)
+{
+    m_headlessSessionMgr->HandleLoginCallback(holder);
+}
+
+bool World::ReclaimHeadlessSession(ObjectGuid characterGuid, WorldSession* session,
+    WorldSession* replacement, uint32 accountId)
+{
+    return m_headlessSessionMgr->ReclaimForNetwork(characterGuid, session, replacement, accountId);
+}
+
+void World::StopHeadlessSessionsForAccount(uint32 accountId, bool save)
+{
+    m_headlessSessionMgr->StopForAccount(accountId, save);
+}
+
+bool World::HasOtherSessionForAccount(uint32 accountId, WorldSession const* excluded) const
+{
+    for (auto const& entry : m_sessions)
+    {
+        if (entry.second && entry.second != excluded &&
+            entry.second->GetAccountId() == accountId)
+            return true;
+    }
+
+    return false;
 }
 
 void World::AddSession_(WorldSession* s)
@@ -2434,9 +2497,6 @@ void LoadPlayerEggLoot();
 	sObjectMgr.LoadPlayerPhaseFromDb();
     sLog.outString("Caching player pets...");
 	sCharacterDatabaseCache.LoadAll();
-    // Penqle's "Loading player bot manager... / sPlayerBotMgr.Load()" removed.
-    // cmangos's RandomPlayerbotMgr is instantiated by InitPlayerbotsAtStartup(), called near
-    // the end of this function.
     sLog.outString("Loading faction change reputations...");
 	sObjectMgr.LoadFactionChangeReputations();
     sLog.outString("Loading faction change spells...");
@@ -2529,22 +2589,7 @@ void LoadPlayerEggLoot();
             honorUpdateFile << "0";
     }
 
-    // Initialize bot config + managers. InitPlayerbotsAtStartup (HostHooks.cpp) loads
-    // aiplayerbot.conf, instantiates sPlayerbotAIConfig / sRandomPlayerbotMgr / sAhBot, and runs
-    // PlayerbotAIConfig::Initialize() — which builds the equipment cache (RandomItemMgr::Init →
-    // BuildEquipCache, scans sItemStorage) and validates the premade talent specs (LoadTalentSpecs,
-    // reads Talent.dbc). It MUST run after LoadDBCStores() and LoadItemPrototypes() above, otherwise
-    // those caches build against empty data on first boot. No-op if AiPlayerbot.Enabled = 0.
-    // The module registers its hook objects here; the work it used to do in
-    // FinalizePlayerbotsPostPlayerInfo() now runs from WorldScript::OnStartup
-    // just below, which is the same point in the sequence.
-    InitPlayerbotsAtStartup();
-
-    // Moved here from the tail of DetectDBCLang(). That helper runs right after
-    // LoadDBCStores() and well before LoadItemPrototypes(), so a module doing any
-    // item work in OnStartup saw empty caches. Here it sits at the end of world
-    // setup, still inside the loading-time measurement, which is where
-    // AzerothCore fires it.
+    // Modules start after DBC, item, and player caches are initialized.
     ScriptRegistry<WorldScript>::ForEachEnabledHook(WORLDHOOK_ON_STARTUP, [](WorldScript* script)
     {
         script->OnStartup();
@@ -2601,7 +2646,6 @@ void World::DetectDBCLang()
     m_defaultDbcLocale = LocaleConstant(default_locale);
 
     sLog.outString("Using %s DBC locale as default.", localeNames[m_defaultDbcLocale]);
-    
 }
 
 void World::ApiServerDeleter::operator()(HttpApi::ApiServer* p)
@@ -2731,6 +2775,7 @@ void World::UpdateWorldBuffTimer(uint32 diff, WorldBuffTimerState& state, uint32
 /// Update the World !
 void World::Update(uint32 diff)
 {
+    MANTECH_DIAG_SCOPE(World, 1, nullptr);
     static TurtleDiagnostics::Summary worldDiagnostics;
     static uint64 diagnosticTick = 0;
     TurtleDiagnostics::Frame diagnosticFrame(worldDiagnostics, UINT32_MAX, 0, ++diagnosticTick);
@@ -2982,9 +3027,6 @@ void World::Update(uint32 diff)
     else
         m_MaintenanceTimeChecker -= diff;
 
-    // PlayerBotMgr update removed — Penqle stub binned. cmangos's
-    // sRandomPlayerbotMgr.UpdateAI(diff) runs from the bot module WorldScript::OnUpdate.
-
     // Update AutoBroadcast
     sAutoBroadCastMgr.Update(diff);
 
@@ -3180,10 +3222,10 @@ void World::Update(uint32 diff)
         }
     }
 
-    // Moved here from the head of this function. Firing first meant a module
-    // acted before UpdateSessions, sMapMgr, sBattleGroundMgr and sLFTMgr had
-    // run, so it saw the previous tick. This is where AzerothCore fires it, and
-    // where the bot tick used to sit.
+    // Moved here from the head of this function. Firing first meant a module acted
+    // before UpdateSessions, sMapMgr, sBattleGroundMgr and sLFTMgr had run, so every
+    // module tick decided on the PREVIOUS tick's world -- a module may hold several
+    // WorldScripts and was steering sixty crews on stale positions.
     ScriptRegistry<WorldScript>::ForEachEnabledHook(WORLDHOOK_ON_UPDATE, [&](WorldScript* script)
     {
         script->OnUpdate(diff);
@@ -3495,6 +3537,8 @@ void World::BanAccount(uint32 accountId, uint32 duration, std::string reason, st
     else
         sAccountMgr.BanAccount(accountId, 0xFFFFFFFF);
 
+    StopHeadlessSessionsForAccount(accountId, true);
+
     if (WorldSession* sess = FindSession(accountId))
     {
         if (std::string(sess->GetPlayerName()) != author)
@@ -3567,6 +3611,8 @@ public:
                     sAccountMgr.BanAccount(account, time(nullptr) + holder->GetDuration());
                 else
                     sAccountMgr.BanAccount(account, 0xFFFFFFFF);
+
+                sWorld.StopHeadlessSessionsForAccount(account, true);
             }
             // Don't immediately kick if we're banning ourselves (destroys session, crash)
             if (account != holder->GetAuthorAccountId())
@@ -3950,6 +3996,8 @@ void World::UpdateSessions(uint32 diff)
     while (addSessQueue.next(sess))
         AddSession_(sess);
 
+    m_headlessSessionMgr->PromotePending();
+
     ///- Then send an update signal to remaining ones
     time_t time_now = time(nullptr);
 
@@ -3992,6 +4040,8 @@ void World::UpdateSessions(uint32 diff)
             itr++;
         }
     }
+
+    m_headlessSessionMgr->Update(diff);
     m_canProcessAsyncPackets = true;
 }
 
@@ -4044,6 +4094,8 @@ void World::InitResultQueue()
 
 void World::UpdateResultQueue()
 {
+    MANTECH_DIAG_SCOPE(DbCallbacks, 1, nullptr);
+
     static unsigned first = 0; // owner-thread only; rotate to avoid DB starvation
     uint32 const begin = WorldTimer::getMSTime();
     uint32 const budget = getConfig(CONFIG_UINT32_DB_CALLBACK_BUDGET_MS);

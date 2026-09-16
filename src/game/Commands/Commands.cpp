@@ -993,7 +993,7 @@ bool ChatHandler::HandleListAurasCommand(char* /*args*/)
             {
                 PSendSysMessage(LANG_COMMAND_TARGET_AURADETAIL, holder->GetId(), aur->GetEffIndex(),
                     aur->GetModifier()->m_auraname, aur->GetAuraDuration(), aur->GetAuraMaxDuration(), aur->GetAuraPeriodicTimer(), aur->GetStackAmount(),
-                    name,
+                    name.c_str(),           // std::string through a printf vararg is an error under clang
                     (holder->IsPassive() ? passiveStr : ""), (talent ? talentStr : ""),
                     holder->GetCasterGuid().GetString().c_str());
             }
@@ -2646,7 +2646,7 @@ bool ChatHandler::HandleGuildHouseCommand(char* args)
     {
         CharacterDatabase.PExecute("REPLACE INTO guild_house VALUES (%u, %u, %f, %f, %f, %f);",
             guild_id, player->GetMapId(), player->GetPositionX(), player->GetPositionY(), player->GetPositionZ(), player->GetOrientation());
-        PSendSysMessage("The guild house teleport for %s was created.", sGuildMgr.GetGuildNameById(guild_id));
+        PSendSysMessage("The guild house teleport for %s was created.", sGuildMgr.GetGuildNameById(guild_id).c_str());
     }
     else
     {
@@ -11683,11 +11683,18 @@ bool ChatHandler::HandleKickPlayerCommand(char* args)
 
     // send before target pointer invalidate
     PSendSysMessage(LANG_COMMAND_KICKMESSAGE, GetNameLink(target).c_str());
+    WorldSession* targetSession = target->GetSession();
+    if (targetSession->IsHeadless())
+    {
+        sWorld.StopHeadlessSession(target->GetObjectGuid(), true);
+        return true;
+    }
+
     // First kick: close socket but keep player online
-    if (target->GetSession()->IsConnected())
-        target->GetSession()->KickPlayer();
+    if (targetSession->IsConnected())
+        targetSession->KickPlayer();
     else
-        target->GetSession()->KickDisconnectedFromWorld();
+        targetSession->KickDisconnectedFromWorld();
 
     return true;
 }
@@ -19109,16 +19116,16 @@ bool ChatHandler::HandleWarEffortSetStageCommand(char* args)
 bool ChatHandler::HandlePerfStatsCommand(char* args)
 {
     SendSysMessage("Showing performance statistics:");
-    PSendSysMessage("Total Units: %i", PerfStats::g_totalUnits);
-    PSendSysMessage("Total Creatures: %i", PerfStats::g_totalCreatures);
-    PSendSysMessage("Total Pets: %i", PerfStats::g_totalPets);
-    PSendSysMessage("Total Players: %i", PerfStats::g_totalPlayers);
-    PSendSysMessage("Total Corpses: %i", PerfStats::g_totalCorpses);
-    PSendSysMessage("Total Items: %i", PerfStats::g_totalItems);
-    PSendSysMessage("Total GameObjects: %i", PerfStats::g_totalGameObjects);
-    PSendSysMessage("Total DynamicObjects: %i", PerfStats::g_totalDynamicObjects);
-    PSendSysMessage("Total QueryResults: %i", PerfStats::g_totalQueryResults);
-    PSendSysMessage("Total Maps: %i", PerfStats::g_totalMaps);
+    PSendSysMessage("Total Units: %i", PerfStats::g_totalUnits.load(std::memory_order_relaxed));
+    PSendSysMessage("Total Creatures: %i", PerfStats::g_totalCreatures.load(std::memory_order_relaxed));
+    PSendSysMessage("Total Pets: %i", PerfStats::g_totalPets.load(std::memory_order_relaxed));
+    PSendSysMessage("Total Players: %i", PerfStats::g_totalPlayers.load(std::memory_order_relaxed));
+    PSendSysMessage("Total Corpses: %i", PerfStats::g_totalCorpses.load(std::memory_order_relaxed));
+    PSendSysMessage("Total Items: %i", PerfStats::g_totalItems.load(std::memory_order_relaxed));
+    PSendSysMessage("Total GameObjects: %i", PerfStats::g_totalGameObjects.load(std::memory_order_relaxed));
+    PSendSysMessage("Total DynamicObjects: %i", PerfStats::g_totalDynamicObjects.load(std::memory_order_relaxed));
+    PSendSysMessage("Total QueryResults: %i", PerfStats::g_totalQueryResults.load(std::memory_order_relaxed));
+    PSendSysMessage("Total Maps: %i", PerfStats::g_totalMaps.load(std::memory_order_relaxed));
     PSendSysMessage("Slowest Map: %i (%i ms)", PerfStats::g_slowestMapId, PerfStats::g_slowestMapUpdateTime);
 
     return true;

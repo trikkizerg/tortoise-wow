@@ -1443,6 +1443,11 @@ class Player final: public Unit
 
         Player* GetTrader() const { return m_trade ? m_trade->GetTrader() : nullptr; }
         TradeData* GetTradeData() const { return m_trade; }
+        // Server-side / scriptable trade initiation: opens the trade window with
+        // `other` using the same preconditions as the CMSG_INITIATE_TRADE handler,
+        // then leaves items, gold and acceptance to the normal trade path. Purely
+        // additive -- changes no existing behaviour. False if a precondition fails.
+        bool BeginTradeWith(Player* other);
         void TradeCancel(bool sendback, TradeStatus status = TRADE_STATUS_TRADE_CANCELED);
 
         uint32 GetTimeLoggedIn() const { return m_timeLoggedIn; }
@@ -2314,6 +2319,7 @@ class Player final: public Unit
         void GetHomebindLocation(float& x, float& y, float& z, uint32& mapId) const {
             x = m_homebindX; y = m_homebindY; z = m_homebindZ; mapId = m_homebindMapId;
         }
+        WorldLocation GetHomeBindLocation() const { return WorldLocation(m_homebindMapId, m_homebindX, m_homebindY, m_homebindZ); }
 
         void SendSummonRequest(ObjectGuid summonerGuid, uint32 mapId, uint32 zoneId, float x, float y, float z);
         void SetSummonPoint(uint32 mapid, float x, float y, float z)
